@@ -5,6 +5,7 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 
 import { useDemo } from "@/lib/demo/demo-store";
 import { GhostButton } from "@/ui/buttons";
+import { AppIcon } from "@/ui/app-icon";
 import { GlassCard } from "@/ui/glass-card";
 import { haptic } from "@/ui/haptics";
 import { useAppTheme } from "@/ui/app-theme";
@@ -32,8 +33,29 @@ export default function HomeScreen() {
   return (
     <AppScreen>
       <Animated.View entering={FadeInDown.duration(420)} style={{ gap: 8 }}>
-        <Muted>{name ? `Welcome back, ${name}` : "Welcome back"}</Muted>
-        <H1>Starkclaw</H1>
+        <Row>
+          <View style={{ gap: 4 }}>
+            <Muted>{name ? `Welcome back, ${name}` : "Welcome back"}</Muted>
+            <H1>Starkclaw</H1>
+          </View>
+          <Pressable
+            onPress={async () => {
+              await haptic("tap");
+              router.push("/modal");
+            }}
+            style={({ pressed }) => ({
+              paddingVertical: 10,
+              paddingHorizontal: 10,
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: t.colors.glassBorder,
+              backgroundColor: t.scheme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.65)",
+              opacity: pressed ? 0.85 : 1,
+            })}
+          >
+            <AppIcon ios="gearshape.fill" fa="gear" color={t.colors.text} size={18} />
+          </Pressable>
+        </Row>
       </Animated.View>
 
       <Animated.View entering={FadeInDown.delay(70).duration(420)}>
