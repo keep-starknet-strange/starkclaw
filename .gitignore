@@ -20,3 +20,6 @@ contracts/**/.snfoundry_cache/
 
 # Parity audit output
 .parity-output/
+
+# Internal (PR templates, etc.)
+**/PR_DESCRIPTION*.md
