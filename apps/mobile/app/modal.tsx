@@ -49,6 +49,19 @@ export default function DemoSettingsModal() {
 
       <GlassCard>
         <View style={{ gap: 12 }}>
+          <H2>Agent runtime</H2>
+          <GhostButton
+            label="LLM provider settings"
+            onPress={async () => {
+              await haptic("tap");
+              router.push("/llm-settings");
+            }}
+          />
+        </View>
+      </GlassCard>
+
+      <GlassCard>
+        <View style={{ gap: 12 }}>
           <H2>Controls</H2>
           <PrimaryButton
             label="Reset demo state"
