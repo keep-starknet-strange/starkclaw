@@ -22,6 +22,19 @@ jobs:
           path: starknet-agentic
           ref: main
 
+      - name: Parity preflight diagnostics
+        env:
+          UPSTREAM_SESSION_ACCOUNT_PATH: ${{ github.workspace }}/starknet-agentic/contracts/session-account
+        run: |
+          set -euxo pipefail
+          pwd
+          ls -la
+          jq --version
+          echo "UPSTREAM_SESSION_ACCOUNT_PATH=$UPSTREAM_SESSION_ACCOUNT_PATH"
+          test -d "$UPSTREAM_SESSION_ACCOUNT_PATH"
+          ls -la "$UPSTREAM_SESSION_ACCOUNT_PATH"
+          ls -la "$UPSTREAM_SESSION_ACCOUNT_PATH/src"
+
       - name: Run parity TDD tests
         env:
           UPSTREAM_SESSION_ACCOUNT_PATH: ${{ github.workspace }}/starknet-agentic/contracts/session-account

@@ -18,16 +18,23 @@ run_test() {
   local expected_exit="$2"
   shift 2
   local actual_exit=0
-  if "$@" >/dev/null 2>&1; then
+  local output_file
+  output_file=$(mktemp)
+  if "$@" >"$output_file" 2>&1; then
     actual_exit=0
   else
     actual_exit=$?
   fi
   if [[ "$actual_exit" -eq "$expected_exit" ]]; then
     echo -e "${GREEN}PASS${NC}: $name"
+    rm -f "$output_file"
     return 0
   else
     echo -e "${RED}FAIL${NC}: $name (expected exit $expected_exit, got $actual_exit)"
+    echo "--- Command output ($name) ---"
+    sed -n '1,120p' "$output_file"
+    echo "--- End output ---"
+    rm -f "$output_file"
     return 1
   fi
 }
@@ -51,6 +58,13 @@ run_test_json() {
 FAILED=0
 
 echo "=== Parity script TDD audit ==="
+echo "Using UPSTREAM_REAL=$UPSTREAM_REAL"
+if [[ -d "$UPSTREAM_REAL" ]]; then
+  echo "Upstream path exists. Listing key files:"
+  ls -1 "$UPSTREAM_REAL"/src/lib.cairo "$UPSTREAM_REAL"/src/account.cairo "$UPSTREAM_REAL"/src/spending_policy.cairo "$UPSTREAM_REAL"/src/spending_policy/interface.cairo "$UPSTREAM_REAL"/src/spending_policy/component.cairo "$UPSTREAM_REAL"/Scarb.toml 2>/dev/null || true
+else
+  echo "WARNING: upstream path does not exist"
+fi
 
 # 1. Valid upstream → exit 0, pass=true
 run_test "Valid upstream exits 0" 0 \
