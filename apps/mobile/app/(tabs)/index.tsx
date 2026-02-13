@@ -1,9 +1,11 @@
 import * as React from "react";
-import { Pressable, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import Animated, { FadeInDown } from "react-native-reanimated";
 
 import { useDemo } from "@/lib/demo/demo-store";
+import { useBalances } from "@/lib/starknet/use-balances";
+import { useWallet } from "@/lib/wallet/wallet-store";
 import { GhostButton, IconButton } from "@/ui/buttons";
 import { AppIcon } from "@/ui/app-icon";
 import { Badge } from "@/ui/badge";
@@ -24,6 +26,13 @@ export default function HomeScreen() {
   const t = useAppTheme();
   const router = useRouter();
   const { state, actions } = useDemo();
+  const walletStore = useWallet();
+  const liveBalances = useBalances(
+    walletStore.wallet?.rpcUrl ?? null,
+    walletStore.wallet?.accountAddress ?? null,
+    walletStore.wallet?.networkId ?? null,
+  );
+  const hasWallet = walletStore.status === "ready" && walletStore.wallet != null;
   const [draft, setDraft] = React.useState("");
 
   const name = state.onboarding.displayName.trim();
@@ -116,6 +125,54 @@ export default function HomeScreen() {
           </View>
         </GlassCard>
       </Animated.View>
+
+      {hasWallet ? (
+        <Animated.View entering={FadeInDown.delay(105).duration(420)}>
+          <GlassCard>
+            <View style={{ gap: 12 }}>
+              <Row>
+                <H2>Live balances</H2>
+                {liveBalances.status === "loading" ? (
+                  <ActivityIndicator size="small" />
+                ) : (
+                  <Chip label="Refresh" onPress={liveBalances.refresh} />
+                )}
+              </Row>
+
+              {liveBalances.error ? (
+                <View style={{ gap: 6 }}>
+                  <Body style={{ color: t.colors.bad }}>{liveBalances.error}</Body>
+                  <GhostButton label="Retry" onPress={liveBalances.refresh} />
+                </View>
+              ) : null}
+
+              {liveBalances.balances.length > 0 ? (
+                <View style={{ gap: 10 }}>
+                  {liveBalances.balances.map((b) => (
+                    <Row key={b.symbol}>
+                      <View style={{ gap: 2 }}>
+                        <Body style={{ fontFamily: t.font.bodyMedium }}>{b.symbol}</Body>
+                        <Muted>{b.name}</Muted>
+                      </View>
+                      <Mono style={{ fontVariant: ["tabular-nums"] }}>{b.formatted}</Mono>
+                    </Row>
+                  ))}
+                </View>
+              ) : liveBalances.status === "success" ? (
+                <Muted>All balances are zero.</Muted>
+              ) : null}
+
+              <Divider />
+              <Row>
+                <Muted>Account</Muted>
+                <Mono selectable>
+                  {walletStore.wallet!.accountAddress.slice(0, 10)}…{walletStore.wallet!.accountAddress.slice(-6)}
+                </Mono>
+              </Row>
+            </View>
+          </GlassCard>
+        </Animated.View>
+      ) : null}
 
       <Animated.View entering={FadeInDown.delay(140).duration(420)}>
         <GlassCard>
