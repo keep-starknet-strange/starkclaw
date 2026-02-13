@@ -108,8 +108,9 @@ fn setup_owner_tx_context(addr: ContractAddress, owner_r: felt252, owner_s: felt
 /// Sets up cheat codes to simulate a protocol call with session key signature.
 fn setup_session_key_tx_context(
     addr: ContractAddress, session_key: felt252, sig_r: felt252, sig_s: felt252,
+    valid_until: u64,
 ) {
-    start_cheat_signature_global(array![session_key, sig_r, sig_s].span());
+    start_cheat_signature_global(array![session_key, sig_r, sig_s, valid_until.into()].span());
     start_cheat_transaction_hash_global(TX_HASH);
     start_cheat_transaction_version_global(MIN_TX_VERSION);
     start_cheat_caller_address(addr, zero_addr());
@@ -177,7 +178,7 @@ fn test_validate_session_key_signature_succeeds() {
     register_key(agent, addr, session_kp.public_key, permissive_policy());
 
     let (r, s) = session_kp.sign(TX_HASH).unwrap();
-    setup_session_key_tx_context(addr, session_kp.public_key, r, s);
+    setup_session_key_tx_context(addr, session_kp.public_key, r, s, 999_999);
 
     start_cheat_block_timestamp(addr, 100);
     let result = account.__validate__(array![]);
@@ -186,6 +187,67 @@ fn test_validate_session_key_signature_succeeds() {
     stop_cheat_block_timestamp(addr);
     stop_cheat_caller_address(addr);
     cleanup_cheats();
+}
+
+#[test]
+fn test_validate_session_key_signature_with_valid_until_succeeds() {
+    let owner_kp = KeyPairTrait::from_secret_key(0x1234_felt252);
+    let session_kp = KeyPairTrait::from_secret_key(0x5678_felt252);
+    let (addr, account, agent) = deploy_agent_account(owner_kp.public_key);
+
+    register_key(agent, addr, session_kp.public_key, permissive_policy());
+
+    let (r, s) = session_kp.sign(TX_HASH).unwrap();
+    start_cheat_signature_global(array![session_kp.public_key, r, s, 999_999].span());
+    start_cheat_transaction_hash_global(TX_HASH);
+    start_cheat_transaction_version_global(MIN_TX_VERSION);
+    start_cheat_caller_address(addr, zero_addr());
+
+    start_cheat_block_timestamp(addr, 100);
+    let result = account.__validate__(array![]);
+    assert_eq!(result, starknet::VALIDATED);
+
+    stop_cheat_block_timestamp(addr);
+    stop_cheat_caller_address(addr);
+    cleanup_cheats();
+}
+
+#[test]
+#[should_panic(expected: 'Account: invalid sig length')]
+fn test_validate_session_key_three_felt_signature_rejected() {
+    let owner_kp = KeyPairTrait::from_secret_key(0x1234_felt252);
+    let session_kp = KeyPairTrait::from_secret_key(0x5678_felt252);
+    let (addr, account, agent) = deploy_agent_account(owner_kp.public_key);
+
+    register_key(agent, addr, session_kp.public_key, permissive_policy());
+
+    let (r, s) = session_kp.sign(TX_HASH).unwrap();
+    start_cheat_signature_global(array![session_kp.public_key, r, s].span());
+    start_cheat_transaction_hash_global(TX_HASH);
+    start_cheat_transaction_version_global(MIN_TX_VERSION);
+    start_cheat_caller_address(addr, zero_addr());
+
+    start_cheat_block_timestamp(addr, 100);
+    account.__validate__(array![]);
+}
+
+#[test]
+#[should_panic(expected: 'Session key signature expired')]
+fn test_validate_session_key_signature_valid_until_expired_panics() {
+    let owner_kp = KeyPairTrait::from_secret_key(0x1234_felt252);
+    let session_kp = KeyPairTrait::from_secret_key(0x5678_felt252);
+    let (addr, account, agent) = deploy_agent_account(owner_kp.public_key);
+
+    register_key(agent, addr, session_kp.public_key, permissive_policy());
+
+    let (r, s) = session_kp.sign(TX_HASH).unwrap();
+    start_cheat_signature_global(array![session_kp.public_key, r, s, 500].span());
+    start_cheat_transaction_hash_global(TX_HASH);
+    start_cheat_transaction_version_global(MIN_TX_VERSION);
+    start_cheat_caller_address(addr, zero_addr());
+
+    start_cheat_block_timestamp(addr, 1000);
+    account.__validate__(array![]);
 }
 
 #[test]
@@ -200,7 +262,7 @@ fn test_validate_session_key_wrong_signature_panics() {
 
     // Sign with WRONG private key but claim to be session_kp
     let (r, s) = wrong_kp.sign(TX_HASH).unwrap();
-    setup_session_key_tx_context(addr, session_kp.public_key, r, s);
+    setup_session_key_tx_context(addr, session_kp.public_key, r, s, 999_999);
 
     start_cheat_block_timestamp(addr, 100);
     account.__validate__(array![]);
@@ -214,13 +276,13 @@ fn test_validate_session_key_not_registered_panics() {
     let (addr, account, _) = deploy_agent_account(owner_kp.public_key);
 
     let (r, s) = unregistered_kp.sign(TX_HASH).unwrap();
-    setup_session_key_tx_context(addr, unregistered_kp.public_key, r, s);
+    setup_session_key_tx_context(addr, unregistered_kp.public_key, r, s, 999_999);
 
     account.__validate__(array![]);
 }
 
 #[test]
-#[should_panic(expected: 'Session key not valid')]
+#[should_panic(expected: 'Session key signature expired')]
 fn test_validate_expired_session_key_panics() {
     let owner_kp = KeyPairTrait::from_secret_key(0x1234_felt252);
     let session_kp = KeyPairTrait::from_secret_key(0x5678_felt252);
@@ -229,7 +291,7 @@ fn test_validate_expired_session_key_panics() {
     register_key(agent, addr, session_kp.public_key, permissive_policy());
 
     let (r, s) = session_kp.sign(TX_HASH).unwrap();
-    setup_session_key_tx_context(addr, session_kp.public_key, r, s);
+    setup_session_key_tx_context(addr, session_kp.public_key, r, s, 999_999);
 
     start_cheat_block_timestamp(addr, 1_000_000); // past valid_until
     account.__validate__(array![]);
@@ -250,7 +312,7 @@ fn test_validate_revoked_session_key_panics() {
     stop_cheat_caller_address(addr);
 
     let (r, s) = session_kp.sign(TX_HASH).unwrap();
-    setup_session_key_tx_context(addr, session_kp.public_key, r, s);
+    setup_session_key_tx_context(addr, session_kp.public_key, r, s, 999_999);
 
     start_cheat_block_timestamp(addr, 100);
     account.__validate__(array![]);
@@ -317,7 +379,7 @@ fn test_execute_session_key_empty_calls_succeeds() {
     register_key(agent, addr, session_kp.public_key, restricted_policy());
 
     let (r, s) = session_kp.sign(TX_HASH).unwrap();
-    setup_session_key_tx_context(addr, session_kp.public_key, r, s);
+    setup_session_key_tx_context(addr, session_kp.public_key, r, s, 999_999);
     start_cheat_block_timestamp(addr, 100);
 
     let results = account.__execute__(array![]);
@@ -326,6 +388,25 @@ fn test_execute_session_key_empty_calls_succeeds() {
     stop_cheat_block_timestamp(addr);
     stop_cheat_caller_address(addr);
     cleanup_cheats();
+}
+
+#[test]
+#[should_panic(expected: 'Account: invalid sig length')]
+fn test_execute_session_key_three_felt_signature_rejected() {
+    let owner_kp = KeyPairTrait::from_secret_key(0x1234_felt252);
+    let session_kp = KeyPairTrait::from_secret_key(0x5678_felt252);
+    let (addr, account, agent) = deploy_agent_account(owner_kp.public_key);
+
+    register_key(agent, addr, session_kp.public_key, restricted_policy());
+
+    let (r, s) = session_kp.sign(TX_HASH).unwrap();
+    start_cheat_signature_global(array![session_kp.public_key, r, s].span());
+    start_cheat_transaction_hash_global(TX_HASH);
+    start_cheat_transaction_version_global(MIN_TX_VERSION);
+    start_cheat_caller_address(addr, zero_addr());
+
+    start_cheat_block_timestamp(addr, 100);
+    account.__execute__(array![]);
 }
 
 #[test]
@@ -339,7 +420,7 @@ fn test_execute_session_key_disallowed_contract_panics() {
     register_key(agent, addr, session_kp.public_key, restricted_policy());
 
     let (r, s) = session_kp.sign(TX_HASH).unwrap();
-    setup_session_key_tx_context(addr, session_kp.public_key, r, s);
+    setup_session_key_tx_context(addr, session_kp.public_key, r, s, 999_999);
     start_cheat_block_timestamp(addr, 100);
 
     // Call a different target — must panic
@@ -359,7 +440,7 @@ fn test_execute_session_key_multicall_second_target_disallowed_panics() {
     register_key(agent, addr, session_kp.public_key, restricted_policy());
 
     let (r, s) = session_kp.sign(TX_HASH).unwrap();
-    setup_session_key_tx_context(addr, session_kp.public_key, r, s);
+    setup_session_key_tx_context(addr, session_kp.public_key, r, s, 999_999);
     start_cheat_block_timestamp(addr, 100);
 
     let calls = array![generic_call(allowed_target()), generic_call(other_target())];
@@ -385,7 +466,7 @@ fn test_execute_session_key_transfer_exceeds_spending_limit() {
     register_key(agent, addr, session_kp.public_key, policy);
 
     let (r, s) = session_kp.sign(TX_HASH).unwrap();
-    setup_session_key_tx_context(addr, session_kp.public_key, r, s);
+    setup_session_key_tx_context(addr, session_kp.public_key, r, s, 999_999);
     start_cheat_block_timestamp(addr, 100);
 
     // Transfer 150 tokens on the token contract — exceeds limit of 100
@@ -411,7 +492,7 @@ fn test_execute_session_key_transfer_wrong_token_panics() {
     register_key(agent, addr, session_kp.public_key, policy);
 
     let (r, s) = session_kp.sign(TX_HASH).unwrap();
-    setup_session_key_tx_context(addr, session_kp.public_key, r, s);
+    setup_session_key_tx_context(addr, session_kp.public_key, r, s, 999_999);
     start_cheat_block_timestamp(addr, 100);
 
     // Transfer on the WRONG token contract (other_target = 0xCCC != 0xAAA)
@@ -436,7 +517,7 @@ fn test_execute_session_key_multicall_cumulative_spending() {
     register_key(agent, addr, session_kp.public_key, policy);
 
     let (r, s) = session_kp.sign(TX_HASH).unwrap();
-    setup_session_key_tx_context(addr, session_kp.public_key, r, s);
+    setup_session_key_tx_context(addr, session_kp.public_key, r, s, 999_999);
     start_cheat_block_timestamp(addr, 100);
 
     // Two transfers: 60 + 60 = 120 > 100 — must panic on the second
