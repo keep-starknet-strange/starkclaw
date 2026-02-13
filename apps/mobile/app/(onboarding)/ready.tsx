@@ -3,7 +3,7 @@ import { ActivityIndicator, View } from "react-native";
 import { useRouter } from "expo-router";
 import Animated, { FadeInDown } from "react-native-reanimated";
 
-import { useDemo } from "@/lib/demo/demo-store";
+import { useApp } from "@/lib/app/app-provider";
 import { GhostButton, PrimaryButton } from "@/ui/buttons";
 import { GlassCard } from "@/ui/glass-card";
 import { haptic } from "@/ui/haptics";
@@ -15,7 +15,7 @@ import { formatUsd } from "@/ui/format";
 export default function OnboardingReadyScreen() {
   const t = useAppTheme();
   const router = useRouter();
-  const { state, actions } = useDemo();
+  const { state, actions } = useApp();
   const [creating, setCreating] = React.useState(false);
   const [step, setStep] = React.useState(0);
 

@@ -3,7 +3,7 @@ import { View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, { FadeInDown } from "react-native-reanimated";
 
-import { useDemo } from "@/lib/demo/demo-store";
+import { useApp } from "@/lib/app/app-provider";
 import { AppIcon } from "@/ui/app-icon";
 import { Chip } from "@/ui/chip";
 import { Divider } from "@/ui/divider";
@@ -16,7 +16,7 @@ import { Body, H1, H2, Muted } from "@/ui/typography";
 type InboxTab = "alerts" | "activity";
 
 export default function InboxScreen() {
-  const { state, actions } = useDemo();
+  const { state, actions } = useApp();
   const [tab, setTab] = React.useState<InboxTab>("alerts");
 
   const unread = state.alerts.filter((a) => !a.read).length;

@@ -2,7 +2,7 @@ import * as React from "react";
 import { Modal, Pressable, TextInput, View } from "react-native";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 
-import { useDemo } from "@/lib/demo/demo-store";
+import { useApp } from "@/lib/app/app-provider";
 import { GhostButton, IconButton, PrimaryButton } from "@/ui/buttons";
 import { AppIcon } from "@/ui/app-icon";
 import { Badge } from "@/ui/badge";
@@ -28,7 +28,7 @@ function clamp(n: number, min: number, max: number): number {
 
 export default function TradeScreen() {
   const t = useAppTheme();
-  const { state, actions } = useDemo();
+  const { state, actions } = useApp();
 
   const [from, setFrom] = React.useState<Sym>("STRK");
   const [to, setTo] = React.useState<Sym>("USDC");

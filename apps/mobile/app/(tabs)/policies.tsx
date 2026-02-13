@@ -3,7 +3,7 @@ import { Pressable, Switch, TextInput, View } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 
-import { useDemo } from "@/lib/demo/demo-store";
+import { useApp } from "@/lib/app/app-provider";
 import { requireOwnerAuth } from "@/lib/security/owner-auth";
 import { GhostButton, PrimaryButton } from "@/ui/buttons";
 import { AppIcon } from "@/ui/app-icon";
@@ -22,7 +22,7 @@ function toNumberOr(n: string, fallback: number): number {
 
 export default function PoliciesScreen() {
   const t = useAppTheme();
-  const { state, actions } = useDemo();
+  const { state, actions } = useApp();
 
   const [dailyText, setDailyText] = React.useState(String(state.policy.dailySpendCapUsd));
   const [perTxText, setPerTxText] = React.useState(String(state.policy.perTxCapUsd));

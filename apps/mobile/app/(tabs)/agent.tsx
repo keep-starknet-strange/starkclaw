@@ -5,7 +5,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useDemo } from "@/lib/demo/demo-store";
+import { useApp } from "@/lib/app/app-provider";
 import { requireOwnerAuth } from "@/lib/security/owner-auth";
 import { GhostButton, IconButton, PrimaryButton } from "@/ui/buttons";
 import { AppIcon } from "@/ui/app-icon";
@@ -22,7 +22,7 @@ import { Body, H1, H2, Muted } from "@/ui/typography";
 export default function AgentScreen() {
   const t = useAppTheme();
   const insets = useSafeAreaInsets();
-  const { state, actions } = useDemo();
+  const { state, actions } = useApp();
 
   const [draft, setDraft] = React.useState("");
 

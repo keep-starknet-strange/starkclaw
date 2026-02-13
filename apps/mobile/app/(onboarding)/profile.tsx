@@ -4,7 +4,7 @@ import { useRouter } from "expo-router";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 
-import { useDemo } from "@/lib/demo/demo-store";
+import { useApp } from "@/lib/app/app-provider";
 import { GhostButton, PrimaryButton } from "@/ui/buttons";
 import { AppIcon } from "@/ui/app-icon";
 import { GlassCard } from "@/ui/glass-card";
@@ -18,7 +18,7 @@ type Mode = "calm" | "balanced" | "bold";
 export default function OnboardingProfileScreen() {
   const t = useAppTheme();
   const router = useRouter();
-  const { state, actions } = useDemo();
+  const { state, actions } = useApp();
 
   const [name, setName] = React.useState(state.onboarding.displayName);
   const [mode, setMode] = React.useState<Mode>(state.onboarding.riskMode);

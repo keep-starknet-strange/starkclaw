@@ -3,7 +3,7 @@ import { Switch, View } from "react-native";
 import { useRouter } from "expo-router";
 import Animated, { FadeInDown } from "react-native-reanimated";
 
-import { useDemo } from "@/lib/demo/demo-store";
+import { useApp } from "@/lib/app/app-provider";
 import { GhostButton, PrimaryButton } from "@/ui/buttons";
 import { Chip } from "@/ui/chip";
 import { Divider } from "@/ui/divider";
@@ -15,7 +15,7 @@ import { Body, H1, H2, Muted } from "@/ui/typography";
 
 export default function OnboardingAlertsScreen() {
   const router = useRouter();
-  const { state, actions } = useDemo();
+  const { state, actions } = useApp();
 
   return (
     <AppScreen>

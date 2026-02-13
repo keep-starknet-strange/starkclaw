@@ -3,7 +3,7 @@ import { Pressable, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import Animated, { FadeInDown } from "react-native-reanimated";
 
-import { useDemo } from "@/lib/demo/demo-store";
+import { useApp } from "@/lib/app/app-provider";
 import { GhostButton, IconButton } from "@/ui/buttons";
 import { AppIcon } from "@/ui/app-icon";
 import { Badge } from "@/ui/badge";
@@ -23,7 +23,7 @@ function portfolioTotalUsd(balances: { amount: number; usdPrice: number }[]): nu
 export default function HomeScreen() {
   const t = useAppTheme();
   const router = useRouter();
-  const { state, actions } = useDemo();
+  const { state, actions } = useApp();
   const [draft, setDraft] = React.useState("");
 
   const name = state.onboarding.displayName.trim();

@@ -9,7 +9,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import "react-native-reanimated";
 
-import { DemoProvider, useDemo } from "@/lib/demo/demo-store";
+import { AppProvider, useApp } from "@/lib/app/app-provider";
 import { navThemeFromAppTheme, useAppTheme } from "@/ui/app-theme";
 
 export {
@@ -52,9 +52,9 @@ export default function RootLayout() {
   }
 
   return (
-    <DemoProvider>
+    <AppProvider>
       <RootLayoutNav />
-    </DemoProvider>
+    </AppProvider>
   );
 }
 
@@ -77,7 +77,7 @@ function RootLayoutNav() {
 }
 
 function useOnboardingGate() {
-  const { bootStatus, state } = useDemo();
+  const { bootStatus, state } = useApp();
   const segments = useSegments();
   const router = useRouter();
 

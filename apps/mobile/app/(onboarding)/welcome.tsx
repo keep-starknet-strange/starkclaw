@@ -3,7 +3,7 @@ import { View } from "react-native";
 import { useRouter } from "expo-router";
 import Animated, { FadeInDown } from "react-native-reanimated";
 
-import { useDemo } from "@/lib/demo/demo-store";
+import { useApp } from "@/lib/app/app-provider";
 import { GhostButton, PrimaryButton } from "@/ui/buttons";
 import { Badge } from "@/ui/badge";
 import { GlassCard } from "@/ui/glass-card";
@@ -15,7 +15,7 @@ import { Body, Display, H2, Muted } from "@/ui/typography";
 export default function WelcomeScreen() {
   const t = useAppTheme();
   const router = useRouter();
-  const { actions } = useDemo();
+  const { actions } = useApp();
 
   const onReset = React.useCallback(async () => {
     await haptic("warn");

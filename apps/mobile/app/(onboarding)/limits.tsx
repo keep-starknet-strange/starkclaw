@@ -3,7 +3,7 @@ import { TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import Animated, { FadeInDown } from "react-native-reanimated";
 
-import { useDemo } from "@/lib/demo/demo-store";
+import { useApp } from "@/lib/app/app-provider";
 import { GhostButton, PrimaryButton } from "@/ui/buttons";
 import { Chip } from "@/ui/chip";
 import { GlassCard } from "@/ui/glass-card";
@@ -20,7 +20,7 @@ function toNumberOr(n: string, fallback: number): number {
 export default function OnboardingLimitsScreen() {
   const t = useAppTheme();
   const router = useRouter();
-  const { state, actions } = useDemo();
+  const { state, actions } = useApp();
 
   const [daily, setDaily] = React.useState(String(state.policy.dailySpendCapUsd));
   const [perTx, setPerTx] = React.useState(String(state.policy.perTxCapUsd));
