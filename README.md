@@ -187,4 +187,4 @@ If you find a vulnerability, please open a responsible disclosure issue with min
 
 ## License
 
-License is not set yet. Before making the repo public, we should add a `LICENSE` that matches the intended contribution model.
+MIT. See `LICENSE`.

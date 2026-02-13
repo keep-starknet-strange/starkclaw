@@ -17,7 +17,7 @@ The product story lives in the repo root `README.md`. This file is for people ha
 - Expo SDK 54 + Expo Router
 - TypeScript
 - UI: `expo-blur`, `expo-linear-gradient`, `expo-image`, `expo-haptics`
-- Fonts: `@expo-google-fonts/instrument-sans`, `@expo-google-fonts/instrument-serif`
+- Fonts: `@expo-google-fonts/instrument-sans`, `@expo-google-fonts/playwrite-nz-basic`
 - Demo persistence: `expo-secure-store`
 - Router typed routes: generated via `scripts/generate-typed-routes.cjs` (runs before `npm run typecheck`)
 
