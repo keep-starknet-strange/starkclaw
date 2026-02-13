@@ -24,10 +24,15 @@ function signatureToArray(sig: Signature): string[] {
 export class SessionKeySigner extends SignerInterface {
   private readonly inner: Signer;
   private readonly sessionPublicKey: string;
+  private readonly validUntil: number;
 
-  constructor(sessionPrivateKey: string, sessionPublicKey?: string) {
+  constructor(sessionPrivateKey: string, validUntil: number, sessionPublicKey?: string) {
     super();
+    if (!Number.isInteger(validUntil) || validUntil <= 0) {
+      throw new Error("SessionKeySigner: validUntil must be a positive unix timestamp");
+    }
     this.inner = new Signer(sessionPrivateKey);
+    this.validUntil = validUntil;
     this.sessionPublicKey = sessionPublicKey ?? ec.starkCurve.getStarkKey(sessionPrivateKey);
   }
 
@@ -45,7 +50,7 @@ export class SessionKeySigner extends SignerInterface {
   ): Promise<Signature> {
     const sig = await this.inner.signTransaction(transactions, transactionsDetail);
     const [r, s] = signatureToArray(sig);
-    return [this.sessionPublicKey, r, s];
+    return [this.sessionPublicKey, r, s, `0x${this.validUntil.toString(16)}`];
   }
 
   async signDeployAccountTransaction(details: DeployAccountSignerDetails): Promise<Signature> {
@@ -56,4 +61,3 @@ export class SessionKeySigner extends SignerInterface {
     return this.inner.signDeclareTransaction(details);
   }
 }
-

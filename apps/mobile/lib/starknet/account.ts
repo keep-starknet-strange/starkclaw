@@ -18,11 +18,13 @@ type SessionSignerOptions =
   | {
       signer: SignerInterface;
       sessionPrivateKey?: never;
+      sessionValidUntil?: never;
       sessionPublicKey?: never;
     }
   | {
       signer?: undefined;
       sessionPrivateKey: string;
+      sessionValidUntil: number;
       sessionPublicKey?: string;
     };
 
@@ -33,7 +35,8 @@ export function createSessionAccount(
   } & SessionSignerOptions
 ): Account {
   const signer =
-    opts.signer ?? new SessionKeySigner(opts.sessionPrivateKey, opts.sessionPublicKey);
+    opts.signer ??
+    new SessionKeySigner(opts.sessionPrivateKey, opts.sessionValidUntil, opts.sessionPublicKey);
 
   return new Account({
     provider: { nodeUrl: opts.rpcUrl },

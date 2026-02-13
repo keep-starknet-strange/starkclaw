@@ -230,7 +230,8 @@ pub mod AgentAccount {
     //
     // Signature convention:
     //   Owner:       [r, s]               (2 felts — standard ECDSA)
-    //   Session key: [session_key, r, s]   (3 felts — key pubkey prepended)
+    //   Session key: [session_key, r, s, valid_until]
+    //                (4 felts — key pubkey prepended + explicit expiry)
     // ───────────────────────────────────────────────────────────────────
 
     #[abi(per_item)]
@@ -241,9 +242,11 @@ pub mod AgentAccount {
         /// For owner transactions (2-element sig): delegates to OZ's internal
         /// signature check against the account's stored public key.
         ///
-        /// For session key transactions (3-element sig): verifies that the
+        /// For session key transactions (4-element sig): verifies that the
         /// session key is registered and currently valid, then checks the ECDSA
-        /// signature against the session key's public key.
+        /// signature against the session key's public key. It also enforces
+        /// that the signature-level `valid_until` has not expired and does not
+        /// extend beyond the registered session policy.
         #[external(v0)]
         fn __validate__(self: @ContractState, calls: Array<Call>) -> felt252 {
             let tx_info = get_tx_info().unbox();
@@ -259,12 +262,23 @@ pub mod AgentAccount {
                 return starknet::VALIDATED;
             }
 
-            if signature.len() == 3 {
-                // Session key path: [session_key_pubkey, r, s]
+            if signature.len() == 4 {
+                // Session key path: [session_key_pubkey, r, s, valid_until]
                 let session_key = *signature.at(0);
+                let valid_until: u64 = (*signature.at(3)).try_into().expect(
+                    'Session key: bad valid_until',
+                );
+
+                assert(
+                    get_block_timestamp() <= valid_until, 'Session key signature expired',
+                );
 
                 // Key must be registered, active, and within its time window
                 assert(self.session_keys.is_valid(session_key), 'Session key not valid');
+                let policy = self.session_keys.get_policy(session_key);
+                assert(
+                    valid_until <= policy.valid_until, 'Session: vu > policy',
+                );
 
                 // Verify ECDSA signature over the transaction hash
                 assert(
@@ -285,7 +299,7 @@ pub mod AgentAccount {
         /// Executes calls with session key policy enforcement.
         ///
         /// For owner transactions (2-element sig): executes with no restrictions.
-        /// For session key transactions (3-element sig): enforces per-call policy
+        /// For session key transactions (4-element sig): enforces per-call policy
         /// checks before execution:
         ///   - `allowed_contract`: each call target must match the policy
         ///   - `spending_limit`: ERC-20 value-moving selectors (`transfer`,
@@ -303,11 +317,20 @@ pub mod AgentAccount {
             let tx_info = get_tx_info().unbox();
             let signature = tx_info.signature;
 
-            if signature.len() == 3 {
+            if signature.len() == 4 {
                 // Session key transaction — enforce policies before execution
                 let session_key = *signature.at(0);
+                let valid_until: u64 = (*signature.at(3)).try_into().expect(
+                    'Session key: bad valid_until',
+                );
                 let policy = self.session_keys.get_policy(session_key);
                 let zero_addr: ContractAddress = 0.try_into().unwrap();
+                assert(
+                    get_block_timestamp() <= valid_until, 'Session key signature expired',
+                );
+                assert(
+                    valid_until <= policy.valid_until, 'Session: vu > policy',
+                );
 
                 let calls_span = calls.span();
                 let mut i: u32 = 0;
@@ -347,8 +370,10 @@ pub mod AgentAccount {
 
                     i += 1;
                 };
+            } else {
+                // Owner path (signature.len() == 2): no restrictions
+                assert(signature.len() == 2, 'Account: invalid sig length');
             }
-            // Owner path (signature.len() == 2): no restrictions
 
             execute_calls(calls.span())
         }
