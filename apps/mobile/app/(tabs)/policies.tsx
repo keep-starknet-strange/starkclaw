@@ -1,10 +1,12 @@
 import * as React from "react";
 import { Pressable, Switch, TextInput, View } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
+import { LinearGradient } from "expo-linear-gradient";
 
 import { useDemo } from "@/lib/demo/demo-store";
 import { requireOwnerAuth } from "@/lib/security/owner-auth";
 import { GhostButton, PrimaryButton } from "@/ui/buttons";
+import { AppIcon } from "@/ui/app-icon";
 import { Chip } from "@/ui/chip";
 import { GlassCard } from "@/ui/glass-card";
 import { haptic } from "@/ui/haptics";
@@ -273,6 +275,28 @@ function Segment<T extends string>(props: {
     <View style={{ gap: 10 }}>
       {props.items.map((it) => {
         const selected = it.id === props.value;
+        const borderA = selected
+          ? t.scheme === "dark"
+            ? "rgba(90,169,255,0.38)"
+            : "rgba(36,87,255,0.28)"
+          : t.scheme === "dark"
+            ? "rgba(255,255,255,0.20)"
+            : "rgba(255,255,255,0.92)";
+        const borderB = selected
+          ? t.scheme === "dark"
+            ? "rgba(106,228,215,0.26)"
+            : "rgba(14,142,166,0.18)"
+          : t.scheme === "dark"
+            ? "rgba(255,255,255,0.08)"
+            : "rgba(8,18,32,0.10)";
+        const fill = selected
+          ? t.scheme === "dark"
+            ? "rgba(90,169,255,0.12)"
+            : "rgba(36,87,255,0.10)"
+          : t.scheme === "dark"
+            ? "rgba(255,255,255,0.05)"
+            : "rgba(255,255,255,0.60)";
+
         return (
           <Pressable
             key={it.id}
@@ -281,28 +305,35 @@ function Segment<T extends string>(props: {
               props.onChange(it.id);
             }}
             style={({ pressed }) => ({
-              paddingVertical: 12,
-              paddingHorizontal: 12,
-              borderRadius: t.radius.lg,
-              borderWidth: 1,
-              borderColor: selected ? "rgba(106,228,215,0.38)" : t.colors.glassBorder,
-              backgroundColor: selected
-                ? t.scheme === "dark"
-                  ? "rgba(106,228,215,0.12)"
-                  : "rgba(14,142,166,0.10)"
-                : t.scheme === "dark"
-                  ? "rgba(255,255,255,0.05)"
-                  : "rgba(255,255,255,0.55)",
               opacity: pressed ? 0.85 : 1,
             })}
           >
-            <View style={{ gap: 3 }}>
-              <Row>
-                <Body style={{ fontFamily: t.font.bodyMedium }}>{it.label}</Body>
-                {selected ? <Body style={{ fontFamily: t.font.bodyMedium, color: t.colors.accent }}>Selected</Body> : null}
-              </Row>
-              <Muted>{it.caption}</Muted>
-            </View>
+            <LinearGradient
+              colors={[borderA, borderB]}
+              start={{ x: 0.1, y: 0.0 }}
+              end={{ x: 0.9, y: 1 }}
+              style={{ borderRadius: t.radius.lg, borderCurve: "continuous", padding: 1 }}
+            >
+              <View
+                style={{
+                  paddingVertical: 12,
+                  paddingHorizontal: 12,
+                  borderRadius: t.radius.lg - 1,
+                  borderCurve: "continuous",
+                  borderWidth: 1,
+                  borderColor: t.colors.glassBorder,
+                  backgroundColor: fill,
+                }}
+              >
+                <View style={{ gap: 4 }}>
+                  <Row>
+                    <Body style={{ fontFamily: t.font.bodyMedium }}>{it.label}</Body>
+                    {selected ? <AppIcon ios="checkmark.circle.fill" fa="check-circle" color={t.colors.text} size={18} /> : null}
+                  </Row>
+                  <Muted>{it.caption}</Muted>
+                </View>
+              </View>
+            </LinearGradient>
           </Pressable>
         );
       })}

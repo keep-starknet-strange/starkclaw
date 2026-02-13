@@ -1,12 +1,14 @@
 import * as React from "react";
-import { KeyboardAvoidingView, Pressable, ScrollView, Switch, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, ScrollView, Switch, TextInput, View } from "react-native";
 import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useDemo } from "@/lib/demo/demo-store";
 import { requireOwnerAuth } from "@/lib/security/owner-auth";
-import { GhostButton, PrimaryButton } from "@/ui/buttons";
+import { GhostButton, IconButton, PrimaryButton } from "@/ui/buttons";
+import { AppIcon } from "@/ui/app-icon";
 import { Badge } from "@/ui/badge";
 import { Chip } from "@/ui/chip";
 import { Divider } from "@/ui/divider";
@@ -200,36 +202,16 @@ export default function AgentScreen() {
                   maxHeight: 120,
                 }}
               />
-              <Pressable
+              <IconButton
                 disabled={!draft.trim()}
+                tone={draft.trim() ? "accent" : "neutral"}
                 onPress={async () => {
                   await haptic("tap");
                   actions.sendAgentMessage(draft);
                   setDraft("");
                 }}
-                style={({ pressed }) => ({
-                  paddingVertical: 12,
-                  paddingHorizontal: 14,
-                  borderRadius: 16,
-                  borderCurve: "continuous",
-                  opacity: !draft.trim() ? 0.45 : pressed ? 0.85 : 1,
-                  borderWidth: 1,
-                  borderColor: draft.trim()
-                    ? t.scheme === "dark"
-                      ? "rgba(90,169,255,0.34)"
-                      : "rgba(36,87,255,0.26)"
-                    : t.colors.glassBorder,
-                  backgroundColor: draft.trim()
-                    ? t.scheme === "dark"
-                      ? "rgba(90,169,255,0.16)"
-                      : "rgba(36,87,255,0.12)"
-                    : t.scheme === "dark"
-                      ? "rgba(255,255,255,0.05)"
-                      : "rgba(255,255,255,0.60)",
-                })}
-              >
-                <Body style={{ fontFamily: t.font.bodySemibold }}>Send</Body>
-              </Pressable>
+                icon={<AppIcon ios="arrow.up" fa="arrow-up" color={t.colors.text} size={18} />}
+              />
             </View>
           </BlurView>
         </View>
@@ -277,26 +259,43 @@ function ToggleRow(props: { title: string; body: string; value: boolean; onChang
 function MessageBubble(props: { role: "user" | "assistant"; text: string }) {
   const t = useAppTheme();
   const isUser = props.role === "user";
+  const borderA = isUser
+    ? t.scheme === "dark"
+      ? "rgba(90,169,255,0.42)"
+      : "rgba(36,87,255,0.30)"
+    : t.scheme === "dark"
+      ? "rgba(255,255,255,0.20)"
+      : "rgba(255,255,255,0.92)";
+  const borderB = isUser ? (t.scheme === "dark" ? "rgba(106,228,215,0.26)" : "rgba(14,142,166,0.18)") : t.colors.glassBorder;
+  const fill = isUser
+    ? t.scheme === "dark"
+      ? "rgba(90,169,255,0.14)"
+      : "rgba(36,87,255,0.12)"
+    : t.scheme === "dark"
+      ? "rgba(255,255,255,0.05)"
+      : "rgba(255,255,255,0.60)";
   return (
     <View style={{ alignSelf: isUser ? "flex-end" : "flex-start", maxWidth: "92%" }}>
-      <View
-        style={{
-          paddingVertical: 10,
-          paddingHorizontal: 12,
-          borderRadius: 18,
-          borderWidth: 1,
-          borderColor: isUser ? "rgba(90,169,255,0.30)" : t.colors.glassBorder,
-          backgroundColor: isUser
-            ? t.scheme === "dark"
-              ? "rgba(90,169,255,0.14)"
-              : "rgba(36,87,255,0.10)"
-            : t.scheme === "dark"
-              ? "rgba(255,255,255,0.05)"
-              : "rgba(255,255,255,0.55)",
-        }}
+      <LinearGradient
+        colors={[borderA, borderB]}
+        start={{ x: 0.1, y: 0.0 }}
+        end={{ x: 0.9, y: 1 }}
+        style={{ borderRadius: 20, borderCurve: "continuous", padding: 1 }}
       >
-        <Body style={{ color: t.colors.text }}>{props.text}</Body>
-      </View>
+        <View
+          style={{
+            paddingVertical: 10,
+            paddingHorizontal: 12,
+            borderRadius: 19,
+            borderCurve: "continuous",
+            borderWidth: 1,
+            borderColor: t.colors.glassBorder,
+            backgroundColor: fill,
+          }}
+        >
+          <Body style={{ color: t.colors.text }}>{props.text}</Body>
+        </View>
+      </LinearGradient>
     </View>
   );
 }

@@ -10,6 +10,7 @@ export function GlassCard(props: {
   style?: StyleProp<ViewStyle>;
   padding?: number;
   intensity?: number;
+  variant?: "card" | "flat" | "lift";
 }) {
   const t = useAppTheme();
   const pad = props.padding ?? 14;
@@ -19,9 +20,16 @@ export function GlassCard(props: {
   const borderB = t.scheme === "dark" ? "rgba(255,255,255,0.08)" : "rgba(8,18,32,0.10)";
   const highlightA = t.scheme === "dark" ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.45)";
   const highlightB = "rgba(255,255,255,0.0)";
+  const variant = props.variant ?? "card";
+  const shadow = variant === "lift" ? t.shadow.lift : variant === "flat" ? null : t.shadow.card;
 
   return (
-    <View style={[{ borderRadius: t.radius.xl, borderCurve: "continuous", boxShadow: t.shadow.card }, props.style]}>
+    <View
+      style={[
+        { borderRadius: t.radius.xl, borderCurve: "continuous", ...(shadow ? { boxShadow: shadow } : null) },
+        props.style,
+      ]}
+    >
       <LinearGradient
         colors={[borderA, borderB]}
         start={{ x: 0.1, y: 0.0 }}

@@ -1,10 +1,11 @@
 import * as React from "react";
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 import { useRouter } from "expo-router";
 import Animated, { FadeInDown } from "react-native-reanimated";
 
 import { useDemo } from "@/lib/demo/demo-store";
-import { PrimaryButton } from "@/ui/buttons";
+import { GhostButton, PrimaryButton } from "@/ui/buttons";
+import { Badge } from "@/ui/badge";
 import { GlassCard } from "@/ui/glass-card";
 import { haptic } from "@/ui/haptics";
 import { useAppTheme } from "@/ui/app-theme";
@@ -26,9 +27,7 @@ export default function WelcomeScreen() {
       <View style={{ flex: 1, paddingHorizontal: 18, paddingTop: 42, paddingBottom: 28, justifyContent: "space-between", gap: 16 }}>
         <View style={{ gap: 14 }}>
           <Animated.View entering={FadeInDown.duration(500)}>
-            <View style={{ alignSelf: "flex-start", paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1, borderColor: t.colors.glassBorder, backgroundColor: t.scheme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.7)" }}>
-              <Muted style={{ color: t.colors.muted }}>Demo mode • UI-only</Muted>
-            </View>
+            <Badge label="Demo mode" tone="neutral" />
           </Animated.View>
 
           <Animated.View entering={FadeInDown.delay(60).duration(520)} style={{ gap: 10 }}>
@@ -71,16 +70,7 @@ export default function WelcomeScreen() {
             }}
           />
 
-          <Pressable
-            onPress={onReset}
-            style={({ pressed }) => ({
-              paddingVertical: 12,
-              borderRadius: 16,
-              opacity: pressed ? 0.7 : 1,
-            })}
-          >
-            <Body style={{ textAlign: "center", color: t.colors.muted }}>Reset demo state</Body>
-          </Pressable>
+          <GhostButton label="Reset demo state" onPress={onReset} />
         </Animated.View>
       </View>
     </AppBackground>
@@ -96,4 +86,3 @@ function RowLine(props: { title: string; body: string }) {
     </View>
   );
 }
-

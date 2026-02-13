@@ -4,7 +4,7 @@ import { useRouter } from "expo-router";
 import Animated, { FadeInDown } from "react-native-reanimated";
 
 import { useDemo } from "@/lib/demo/demo-store";
-import { GhostButton, IconButton, PrimaryButton } from "@/ui/buttons";
+import { GhostButton, IconButton } from "@/ui/buttons";
 import { AppIcon } from "@/ui/app-icon";
 import { Badge } from "@/ui/badge";
 import { Chip } from "@/ui/chip";
@@ -55,6 +55,30 @@ export default function HomeScreen() {
       <Animated.View entering={FadeInDown.delay(70).duration(420)}>
         <GlassCard>
           <View style={{ gap: 12 }}>
+            <View
+              pointerEvents="none"
+              style={{
+                position: "absolute",
+                top: -140,
+                right: -170,
+                width: 340,
+                height: 340,
+                borderRadius: 999,
+                backgroundColor: t.scheme === "dark" ? "rgba(90,169,255,0.18)" : "rgba(36,87,255,0.14)",
+              }}
+            />
+            <View
+              pointerEvents="none"
+              style={{
+                position: "absolute",
+                bottom: -220,
+                left: -220,
+                width: 440,
+                height: 440,
+                borderRadius: 999,
+                backgroundColor: t.scheme === "dark" ? "rgba(106,228,215,0.12)" : "rgba(14,142,166,0.10)",
+              }}
+            />
             <Row>
               <View style={{ gap: 2 }}>
                 <Muted>Portfolio</Muted>
@@ -151,36 +175,48 @@ export default function HomeScreen() {
               <Badge label="Mocked" tone="neutral" />
             </Row>
 
-            <TextInput
-              value={draft}
-              onChangeText={setDraft}
-              placeholder="Try: swap 50 STRK to USDC…"
-              placeholderTextColor={t.scheme === "dark" ? "rgba(234,240,246,0.35)" : "rgba(11,18,32,0.35)"}
-              autoCapitalize="none"
-              style={{
-                paddingVertical: 12,
-                paddingHorizontal: 12,
-                borderRadius: t.radius.md,
-                borderCurve: "continuous",
-                borderWidth: 1,
-                borderColor: t.colors.glassBorder,
-                backgroundColor: t.scheme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.7)",
-                color: t.colors.text,
-                fontFamily: t.font.body,
-                fontSize: 15,
-              }}
-            />
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+              <TextInput
+                value={draft}
+                onChangeText={setDraft}
+                placeholder="Try: swap 50 STRK to USDC…"
+                placeholderTextColor={t.scheme === "dark" ? "rgba(234,240,246,0.35)" : "rgba(11,18,32,0.35)"}
+                autoCapitalize="none"
+                returnKeyType="send"
+                onSubmitEditing={async () => {
+                  if (!draft.trim()) return;
+                  await haptic("tap");
+                  actions.sendAgentMessage(draft);
+                  setDraft("");
+                  router.push("/agent");
+                }}
+                style={{
+                  flex: 1,
+                  paddingVertical: 12,
+                  paddingHorizontal: 12,
+                  borderRadius: t.radius.md,
+                  borderCurve: "continuous",
+                  borderWidth: 1,
+                  borderColor: t.colors.glassBorder,
+                  backgroundColor: t.scheme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.7)",
+                  color: t.colors.text,
+                  fontFamily: t.font.body,
+                  fontSize: 15,
+                }}
+              />
 
-            <PrimaryButton
-              label="Send to agent"
-              disabled={!draft.trim()}
-              onPress={async () => {
-                await haptic("tap");
-                actions.sendAgentMessage(draft);
-                setDraft("");
-                router.push("/agent");
-              }}
-            />
+              <IconButton
+                disabled={!draft.trim()}
+                tone={draft.trim() ? "accent" : "neutral"}
+                onPress={async () => {
+                  await haptic("tap");
+                  actions.sendAgentMessage(draft);
+                  setDraft("");
+                  router.push("/agent");
+                }}
+                icon={<AppIcon ios="arrow.up" fa="arrow-up" color={t.colors.text} size={18} />}
+              />
+            </View>
 
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
               <PromptChip label="rebalance" onPress={() => setDraft("rebalance")} />
@@ -193,21 +229,40 @@ export default function HomeScreen() {
       </Animated.View>
 
       <Animated.View entering={FadeInDown.delay(230).duration(420)} style={{ gap: 10 }}>
-        <Row style={{ gap: 10 }}>
-          <QuickAction label="Trade" onPress={() => router.push("/trade")} />
-          <QuickAction label="Policies" onPress={() => router.push("/policies")} />
-        </Row>
-        <Row style={{ gap: 10 }}>
-          <QuickAction
-            label="Trigger alert"
-            onPress={() => actions.triggerAlert("Spend cap warning", "A simulated action hit your per-tx cap.", "warn")}
+        <View style={{ flexDirection: "row", gap: 10 }}>
+          <ActionTile
+            label="Trade"
+            caption="Preview a swap"
+            iconIos="arrow.left.arrow.right"
+            iconFa="retweet"
+            onPress={() => router.push("/trade")}
           />
-          <QuickAction
+          <ActionTile
+            label="Policies"
+            caption="Caps + allowlists"
+            iconIos="slider.horizontal.3"
+            iconFa="sliders"
+            onPress={() => router.push("/policies")}
+          />
+        </View>
+        <View style={{ flexDirection: "row", gap: 10 }}>
+          <ActionTile
+            label="Alert"
+            caption="Simulate a warning"
+            iconIos="bell.badge.fill"
+            iconFa="bell"
+            onPress={() => actions.triggerAlert("Spend cap warning", "A simulated action hit your per-tx cap.", "warn")}
+            tone="warn"
+          />
+          <ActionTile
             label={state.policy.emergencyLockdown ? "Unlock" : "Lockdown"}
+            caption={state.policy.emergencyLockdown ? "Resume activity" : "Block all actions"}
+            iconIos={state.policy.emergencyLockdown ? "lock.open.fill" : "lock.fill"}
+            iconFa={state.policy.emergencyLockdown ? "unlock" : "lock"}
             onPress={() => actions.setEmergencyLockdown(!state.policy.emergencyLockdown)}
             tone={state.policy.emergencyLockdown ? "good" : "danger"}
           />
-        </Row>
+        </View>
       </Animated.View>
 
       {pending ? (
@@ -267,23 +322,38 @@ export default function HomeScreen() {
   );
 }
 
-function QuickAction(props: { label: string; onPress: () => void; tone?: "normal" | "danger" | "good" }) {
+function ActionTile(props: {
+  label: string;
+  caption: string;
+  iconIos: string;
+  iconFa: React.ComponentProps<typeof AppIcon>["fa"];
+  onPress: () => void;
+  tone?: "normal" | "danger" | "good" | "warn";
+}) {
   const t = useAppTheme();
   const tone = props.tone ?? "normal";
-  const bg =
+  const iconBg =
     tone === "danger"
       ? "rgba(255,69,58,0.12)"
+      : tone === "warn"
+        ? "rgba(255,159,10,0.12)"
       : tone === "good"
         ? "rgba(48,209,88,0.10)"
-        : t.scheme === "dark"
-          ? "rgba(255,255,255,0.06)"
-          : "rgba(255,255,255,0.6)";
-  const border =
+        : tone === "normal"
+          ? t.scheme === "dark"
+            ? "rgba(255,255,255,0.07)"
+            : "rgba(255,255,255,0.72)"
+          : t.scheme === "dark"
+            ? "rgba(90,169,255,0.14)"
+            : "rgba(36,87,255,0.12)";
+  const iconBorder =
     tone === "danger"
-      ? "rgba(255,69,58,0.28)"
+      ? "rgba(255,69,58,0.30)"
+      : tone === "warn"
+        ? "rgba(255,159,10,0.30)"
       : tone === "good"
         ? "rgba(48,209,88,0.22)"
-        : t.colors.glassBorder;
+        : "rgba(255,255,255,0.14)";
 
   return (
     <Pressable
@@ -293,16 +363,33 @@ function QuickAction(props: { label: string; onPress: () => void; tone?: "normal
       }}
       style={({ pressed }) => ({
         flex: 1,
-        paddingVertical: 12,
-        paddingHorizontal: 12,
-        borderRadius: 18,
-        borderWidth: 1,
-        borderColor: border,
-        backgroundColor: bg,
-        opacity: pressed ? 0.85 : 1,
+        opacity: pressed ? 0.92 : 1,
+        transform: [{ scale: pressed ? 0.985 : 1 }],
       })}
     >
-      <Body style={{ textAlign: "center", fontFamily: t.font.bodyMedium }}>{props.label}</Body>
+      <GlassCard variant="flat" padding={14} intensity={t.scheme === "dark" ? 18 : 55} style={{ flex: 1 }}>
+        <View style={{ gap: 10 }}>
+          <View
+            style={{
+              width: 38,
+              height: 38,
+              borderRadius: 14,
+              borderCurve: "continuous",
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: iconBg,
+              borderWidth: 1,
+              borderColor: iconBorder,
+            }}
+          >
+            <AppIcon ios={props.iconIos} fa={props.iconFa} color={t.colors.text} size={20} />
+          </View>
+          <View style={{ gap: 2 }}>
+            <Body style={{ fontFamily: t.font.bodyMedium }}>{props.label}</Body>
+            <Muted>{props.caption}</Muted>
+          </View>
+        </View>
+      </GlassCard>
     </Pressable>
   );
 }

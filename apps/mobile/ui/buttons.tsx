@@ -130,6 +130,7 @@ export function IconButton(props: {
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
   size?: "sm" | "md";
+  tone?: "neutral" | "accent" | "good" | "warn" | "danger";
 }) {
   const t = useAppTheme();
   const disabled = !!props.disabled;
@@ -137,9 +138,33 @@ export function IconButton(props: {
   const size = props.size ?? "md";
   const pad = size === "sm" ? 9 : 10;
   const radius = size === "sm" ? 16 : 18;
+  const tone = props.tone ?? "neutral";
 
-  const borderA = t.scheme === "dark" ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.92)";
+  const borderA =
+    tone === "good"
+      ? "rgba(48,209,88,0.40)"
+      : tone === "warn"
+        ? "rgba(255,159,10,0.40)"
+        : tone === "danger"
+          ? "rgba(255,69,58,0.40)"
+          : tone === "accent"
+            ? "rgba(90,169,255,0.38)"
+            : t.scheme === "dark"
+              ? "rgba(255,255,255,0.18)"
+              : "rgba(255,255,255,0.92)";
   const borderB = t.scheme === "dark" ? "rgba(255,255,255,0.08)" : "rgba(8,18,32,0.10)";
+  const fill =
+    tone === "good"
+      ? "rgba(48,209,88,0.10)"
+      : tone === "warn"
+        ? "rgba(255,159,10,0.10)"
+        : tone === "danger"
+          ? "rgba(255,69,58,0.10)"
+          : tone === "accent"
+            ? t.scheme === "dark"
+              ? "rgba(90,169,255,0.14)"
+              : "rgba(36,87,255,0.12)"
+            : t.colors.glassFill;
 
   return (
     <Pressable
@@ -162,7 +187,7 @@ export function IconButton(props: {
         end={{ x: 0.9, y: 1 }}
         style={{ borderRadius: radius, borderCurve: "continuous", padding: 1 }}
       >
-        <View style={{ borderRadius: radius - 1, borderCurve: "continuous", overflow: "hidden", backgroundColor: t.colors.glassFill }}>
+        <View style={{ borderRadius: radius - 1, borderCurve: "continuous", overflow: "hidden", backgroundColor: fill }}>
           <BlurView intensity={t.scheme === "dark" ? 14 : 40} tint={tint} style={{ padding: pad }}>
             <View pointerEvents="none" style={StyleSheet.absoluteFill}>
               <LinearGradient

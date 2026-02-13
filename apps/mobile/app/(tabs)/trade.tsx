@@ -3,7 +3,8 @@ import { Modal, Pressable, TextInput, View } from "react-native";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 
 import { useDemo } from "@/lib/demo/demo-store";
-import { GhostButton, PrimaryButton } from "@/ui/buttons";
+import { GhostButton, IconButton, PrimaryButton } from "@/ui/buttons";
+import { AppIcon } from "@/ui/app-icon";
 import { Badge } from "@/ui/badge";
 import { Chip } from "@/ui/chip";
 import { Divider } from "@/ui/divider";
@@ -181,15 +182,14 @@ export default function TradeScreen() {
                 <View style={{ gap: 12 }}>
                   <Row>
                     <H2>Trade preview</H2>
-                    <Pressable
+                    <IconButton
                       onPress={async () => {
                         await haptic("tap");
                         setPreviewOpen(false);
                       }}
-                      style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
-                    >
-                      <Body style={{ fontFamily: t.font.bodyMedium, color: t.colors.muted }}>Close</Body>
-                    </Pressable>
+                      size="sm"
+                      icon={<AppIcon ios="xmark" fa="times" color={t.colors.text} size={18} />}
+                    />
                   </Row>
 
                   <View style={{ gap: 6 }}>
