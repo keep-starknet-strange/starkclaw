@@ -3,7 +3,7 @@ Starkclaw: a premium mobile personal agent that can execute Starknet transaction
 </identity>
 
 <status>
-MVP demo flow is implemented end-to-end in the mobile app (wallet create/fund/deploy, session key policies, constrained ERC20 transfers, activity log). Source of truth: `STATUS.md`.
+App runs in demo mode (UI-only, fully mocked). Live Starknet execution libs exist in `apps/mobile/lib/` but aren't wired to UI yet (issue #2 tracks backend abstraction). Source of truth: `STATUS.md`.
 </status>
 
 <environment>
@@ -24,24 +24,20 @@ Assume the user does not see raw command output; summarize important results.
 </stack>
 
 <structure>
-<current>
-- `apps/mobile/`: Expo app (Starkclaw MVP: wallet, policies, agent, activity)
+- `apps/mobile/`: Expo app (currently demo mode UI; live libs exist in `lib/` subdirs but not wired)
+  - `lib/demo/`: Mocked state for demo mode (currently active)
+  - `lib/starknet/`: RPC client, account, session signer (exists, not wired)
+  - `lib/wallet/`, `lib/policy/`, `lib/agent/`, `lib/activity/`: Live execution libs (exists, not wired)
+  - `app/(tabs)/`: Tab screens (index, trade, agent, policies, inbox)
+  - `app/(onboarding)/`: Onboarding flow
 - `contracts/agent-account/`: Cairo account contract + tests (session keys + policy enforcement)
-- `scripts/`: canonical commands used by CI
+- `scripts/`: Canonical commands used by CI (`check`, `app/dev`, `contracts/test`, etc.)
 - `.github/workflows/ci.yml`: CI entrypoint (runs `./scripts/check`)
-- `spec.md`: expanded MVP spec
-- `IMPLEMENTATION_PLAN.md`: milestones + acceptance criteria
-- `STATUS.md`: current milestone + verification steps
-- `spec.draft.md`: preserved original notes
-- `.claude/skills/`: reusable skill packs (treat as vendored)
-- `.codex` -> `.claude`: symlink (single source of truth is `.claude`)
-</current>
-<target_m00_plus>
-- `apps/mobile/`: Expo app
-- `contracts/`: Cairo contracts + tests + deploy scripts
-- `packages/`: shared TS packages (agent runtime, starknet utils)
-- `scripts/`: deterministic check/dev commands used by CI
-</target_m00_plus>
+- `spec.md`: Expanded MVP spec
+- `IMPLEMENTATION_PLAN.md`: Milestones + acceptance criteria
+- `STATUS.md`: Current milestone + verification steps
+- `.claude/skills/`: Reusable skill packs (treat as vendored)
+- `.codex` -> `.claude`: Symlink (single source of truth is `.claude`)
 </structure>
 
 <conventions>

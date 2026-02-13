@@ -23,37 +23,51 @@ That's it. The agent will self-identify, claim issues, open PRs, review other ag
 
 Works with Claude Code, Codex, Cursor, or any agent that can run `gh` commands.
 
-## What is the MVP target
+## What Works Today
 
-- Mobile wallet that generates a deterministic Starknet account address (fund-first, deploy-later).
-- Deploy the AA account from the app (Sepolia).
-- Create and register on-chain session key policies from the app:
+**Current app mode: Demo (UI-only, fully mocked).**
+
+The mobile app currently runs in **demo mode** with premium UX:
+- Onboarding flow (agent setup, account creation)
+- Transfer/trading preview + confirmations with policy checks (mocked)
+- Policy editor (caps, allowlists, emergency lockdown)
+- Alerts + inbox + activity timeline
+- Agent proposals (approve/reject) with clear context
+
+**No RPC calls, no wallets, no contract interaction yet.** The UI is production-grade; backend wiring is in progress ([#2](https://github.com/keep-starknet-strange/starkclaw/issues/2)).
+
+## What's Being Built (Live Mode)
+
+The building blocks for **live Starknet execution** exist in `apps/mobile/lib/` but aren't wired to the UI:
+
+- Starknet RPC client with retry/fallback
+- Wallet lifecycle (deterministic address, secure storage, deploy flow)
+- Session key policy management (create/register/revoke)
+- Agent transfer execution with on-chain policy enforcement
+- Activity logging with explorer links
+
+**Target MVP** (when live mode is wired):
+- Mobile wallet generates deterministic Starknet account address (fund-first, deploy-later)
+- Deploy AA account from app (Sepolia)
+- Create/register on-chain session key policies:
   - Expiry window (`valid_after`, `valid_until`)
   - Per-24h spend cap (`spending_token`, `spending_limit`)
-  - Allowed contract (v1 is intentionally narrow; enough for constrained token transfers)
-- “Agent” screen that:
-  - Proposes a transfer with a deterministic preview card
-  - Executes via the session key signature format enforced by the account contract
-  - Demonstrates **on-chain denial** when over the cap (not a prompt-level rule)
-- Activity log + explorer links.
+  - Allowed contract (v1: narrow scope for constrained transfers)
+- Agent screen:
+  - Proposes transfers with deterministic preview
+  - Executes via session key signature enforced by account contract
+  - Demonstrates **on-chain denial** when over cap (not prompt-level rule)
+- Activity log + explorer links
 
-What this MVP is not (yet):
+The point is not "the AI behaved."
+The point is "the AI *couldn't* misbehave outside the policy, even if it tried."
 
-- Not audited.
-- Not wired to a real LLM provider yet (the agent UI is intentionally deterministic right now).
-- Not production-ready for mainnet funds.
+## What This Is Not (Yet)
 
-## The Demo In One Minute
-
-1. Create a wallet.
-2. Fund its deterministic address.
-3. Deploy the account contract.
-4. Register a session key policy (example: 10 USDC / 24h, expires in 24h).
-5. Ask the agent to send 2 USDC and execute it.
-6. Ask the agent to send 2000 USDC and watch the chain reject it.
-
-The point is not “the AI behaved”.
-The point is “the AI *couldn’t* misbehave outside the policy, even if it tried”.
+- Not audited
+- Not wired to live Starknet execution (demo mode only, see [#2](https://github.com/keep-starknet-strange/starkclaw/issues/2))
+- Not wired to a real LLM provider (agent UI is deterministic/mocked)
+- Not production-ready for mainnet funds
 
 ## How It Works (No Hand-Waving)
 
@@ -108,7 +122,11 @@ npm ci --prefix apps/mobile
 ./scripts/check
 ```
 
-## Running The Sepolia Demo
+## Running Live Mode (When Available)
+
+**Note:** The app currently runs in demo mode only. Live Starknet execution is being wired in [#2](https://github.com/keep-starknet-strange/starkclaw/issues/2).
+
+Once live mode is available, the flow will be:
 
 ### One-Time: Declare The Account Class
 
@@ -121,26 +139,21 @@ STARKNET_DEPLOYER_PRIVATE_KEY=0x... \
 ```
 
 Notes:
+- `STARKNET_RPC_URL` is optional (defaults to publicnode Sepolia)
+- You need a funded deployer account for fees
 
-- `STARKNET_RPC_URL` is optional (defaults to publicnode Sepolia).
-- You need a funded deployer account for fees.
+### In The App (Planned)
 
-### In The App
+1. Switch to Live mode in Settings
+2. Home: `Create Wallet`
+3. Home: `Faucet` (fund the displayed address)
+4. Home: `Refresh` until ETH balance is non-zero
+5. Home: `Deploy Account`
+6. Policies: `Create + Register` a session key
+7. Agent: Ask to send tokens and execute
+8. Denial test: Set a tiny cap, try to exceed it, confirm on-chain denial
 
-1. Home: `Create Wallet`
-2. Home: `Faucet` (fund the displayed address)
-3. Home: `Refresh` until ETH balance is non-zero
-4. Home: `Deploy Account`
-5. Policies: `Create + Register` a session key (start with ETH/STRK if USDC is unavailable)
-6. Agent:
-   - `send 1 ETH to 0x...`
-   - `Execute`
-7. Denial test:
-   - Create a policy with a tiny cap
-   - Ask to send over the cap
-   - Confirm you get an on-chain denial (and it shows in Activity)
-
-The authoritative runbook is in `STATUS.md`.
+See `STATUS.md` for current progress.
 
 ## Repo Layout
 

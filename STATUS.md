@@ -8,49 +8,59 @@ M09 (Subset): Audit Export + Hardening
 
 ## Completed
 
+**App mode: Demo (UI-only, fully mocked). Live execution building blocks exist but aren't wired to UI yet (see [#2](https://github.com/keep-starknet-strange/starkclaw/issues/2)).**
+
 - Expanded spec written in `spec.md`.
 - Implementation plan and milestones written in `IMPLEMENTATION_PLAN.md`.
-- Original draft preserved in `spec.draft.md`.
 - M00 bootstrap: Expo app scaffold + Cairo contracts workspace + deterministic scripts + CI.
 - M01 baseline safety rails: vendored `contracts/agent-account` and wired into `scripts/contracts/test`.
-- M02 wallet core: deterministic account address + RPC reads (balances, chain id).
-- M03 deploy from mobile: funding UX + deploy account transaction flow.
-- M04 policy UI: create/register/revoke session keys with on-chain policy.
-- M05 agent v0: chat-like UI with deterministic transfer planning + explicit execute button.
-- M06 constrained transfer: session-key transfers + on-chain denial UX + Activity screen.
+- M02 wallet libs: deterministic account address + RPC client with retry/fallback (exists in `apps/mobile/lib/starknet/`, not wired to UI).
+- M03 deploy libs: funding UX + deploy account transaction flow (exists in `apps/mobile/lib/wallet/`, not wired to UI).
+- M04 policy libs: create/register/revoke session keys (exists in `apps/mobile/lib/policy/`, not wired to UI).
+- M05 agent libs: transfer planning + execution (exists in `apps/mobile/lib/agent/`, not wired to UI).
+- M06 activity libs: session-key transfers + on-chain denial UX + activity logging (exists in `apps/mobile/lib/activity/`, not wired to UI).
+- **Premium demo mode UI:** Full onboarding flow + tabs (Home, Trade, Agent, Policies, Inbox) with mocked state (`apps/mobile/lib/demo/`).
 
 ## In Progress
 
 - M09 (subset): lightweight audit export (JSON) + error hardening
 
-## Next Up
+## Next Up (Priority Order)
 
-1. Add lightweight audit log export (JSON) from `Activity` (M09 subset).
-2. Hardening: clearer RPC error surfaces + RPC fallback list (M09 subset).
+1. **P0:** Wire live/demo mode backend abstraction ([#2](https://github.com/keep-starknet-strange/starkclaw/issues/2)) — this unblocks live Starknet execution.
+2. **P1:** Add lightweight audit log export (JSON) from Activity ([#17](https://github.com/keep-starknet-strange/starkclaw/issues/17)).
+3. **P1:** Add RPC hardening (retry/fallback/user-safe errors) — in review ([#18](https://github.com/keep-starknet-strange/starkclaw/issues/18), PR [#28](https://github.com/keep-starknet-strange/starkclaw/pull/28)).
 
 ## How To Verify
 
-- Repo checks: `./scripts/check`
-- Mobile dev server: `./scripts/app/dev`
-- Contracts tests: `./scripts/contracts/test`
+### Automated Checks
+```bash
+./scripts/check        # Runs mobile lint + typecheck + contracts tests
+./scripts/app/dev      # Start Expo dev server
+./scripts/contracts/test  # Run Cairo contract tests
+```
 
-Manual MVP smoke (Sepolia):
+### Demo Mode (Current)
+1. Run `./scripts/app/dev`
+2. Open app in Expo Go
+3. Complete onboarding flow
+4. Navigate tabs: Home → Trade → Agent → Policies → Inbox
+5. Verify premium UI renders correctly with mocked state
 
-0. One-time setup: declare the `AgentAccount` class on Sepolia (required before any user can deploy):
-   - Export env vars:
-     - `STARKNET_RPC_URL` (optional, defaults to publicnode Sepolia)
-     - `STARKNET_DEPLOYER_ADDRESS`
-     - `STARKNET_DEPLOYER_PRIVATE_KEY`
-   - Run: `./scripts/contracts/declare-agent-account`
-1. Open the app.
-2. Tap `Create Wallet`.
-3. Tap `Faucet` and fund the displayed account address with Sepolia ETH.
-4. Back in the app, tap `Refresh` until ETH balance is non-zero.
-5. Tap `Deploy Account` and wait for confirmation.
-6. Go to `Policies`:
-   - Create + register a session key for a token (start with ETH/STRK if USDC is unavailable).
-   - Revoke it (or emergency revoke all) and confirm it shows invalid on-chain after refresh.
-7. Go to `Agent`:
-   - Ask: `send 1 ETH to 0x...` (or STRK/USDC matching your session key policy).
-   - Tap `Execute`.
-   - For denial test: set a small cap in `Policies`, then ask to send an amount over the cap and confirm it is denied on-chain.
+### Live Mode (When Wired, See [#2](https://github.com/keep-starknet-strange/starkclaw/issues/2))
+
+**One-time setup:** Declare `AgentAccount` class on Sepolia:
+```bash
+STARKNET_DEPLOYER_ADDRESS=0x... \
+STARKNET_DEPLOYER_PRIVATE_KEY=0x... \
+./scripts/contracts/declare-agent-account
+```
+
+**Manual smoke test:**
+1. Switch to Live mode in Settings
+2. Create wallet
+3. Fund address via faucet, refresh until ETH appears
+4. Deploy account
+5. Create session key policy in Policies tab
+6. Execute transfer via Agent tab
+7. Denial test: Set low cap, try to exceed it, verify on-chain denial
