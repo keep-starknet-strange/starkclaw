@@ -3,7 +3,7 @@ Starkclaw: a premium mobile personal agent that can execute Starknet transaction
 </identity>
 
 <status>
-Repo is pre-bootstrap (docs + skills only). Next milestone is M00 (scaffold Expo app + Cairo contracts + deterministic scripts + CI). Source of truth: `STATUS.md`.
+Repo is bootstrapped (Expo app + Cairo contracts sanity package + deterministic scripts + CI). Next milestone: M01 import Starknet AA Agent Account contract + tests. Source of truth: `STATUS.md`.
 </status>
 
 <environment>
@@ -13,7 +13,8 @@ Assume the user does not see raw command output; summarize important results.
 
 <stack>
 <current>
-Markdown-only repo (no app/contracts yet).
+- Mobile: Expo SDK 54 + Expo Router (TypeScript, React Native)
+- Contracts: Cairo via Scarb + Starknet Foundry (snforge/sncast)
 </current>
 <target>
 - Mobile: Expo Router (TypeScript, React Native)
@@ -24,6 +25,10 @@ Markdown-only repo (no app/contracts yet).
 
 <structure>
 <current>
+- `apps/mobile/`: Expo app (Expo Router tabs template; will be replaced by Starkclaw UI)
+- `contracts/sanity/`: Cairo sanity package (smoke tests for toolchain wiring)
+- `scripts/`: canonical commands used by CI
+- `.github/workflows/ci.yml`: CI entrypoint (runs `./scripts/check`)
 - `spec.md`: expanded MVP spec
 - `IMPLEMENTATION_PLAN.md`: milestones + acceptance criteria
 - `STATUS.md`: current milestone + verification steps
@@ -56,7 +61,11 @@ Markdown-only repo (no app/contracts yet).
 
 <commands>
 <current>
-No build/test commands exist yet (M00 will introduce them).
+| Task | Command | Notes |
+| ---- | ------- | ----- |
+| Check all | `./scripts/check` | runs mobile lint/typecheck + contracts tests |
+| App dev | `./scripts/app/dev` | `expo start` |
+| Contracts test | `./scripts/contracts/test` | scarb + snforge |
 </current>
 <planned_m00>
 | Task | Command | Notes |

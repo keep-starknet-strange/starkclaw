@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+if ! command -v scarb >/dev/null 2>&1; then
+  echo "scarb not found. Install Scarb to run Cairo checks."
+  exit 1
+fi
+
+if ! command -v snforge >/dev/null 2>&1; then
+  echo "snforge not found. Install Starknet Foundry to run Cairo tests."
+  exit 1
+fi
+
+if [[ ! -d "$ROOT_DIR/contracts" ]]; then
+  echo "No contracts directory found; skipping."
+  exit 0
+fi
+
+cd "$ROOT_DIR/contracts"
+
+if [[ ! -d "sanity" ]]; then
+  echo "No contract packages found; skipping."
+  exit 0
+fi
+
+echo "Running Cairo checks..."
+(
+  cd sanity
+  scarb build
+  snforge test
+)
+

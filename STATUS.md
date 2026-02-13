@@ -14,15 +14,16 @@ M00: Repo Bootstrap (Autonomy First)
 
 ## In Progress
 
-- None (codebase not bootstrapped yet).
+- M00: Repo Bootstrap (Autonomy First)
 
 ## Next Up
 
-1. Scaffold Expo app + contracts workspace and add deterministic `scripts/` commands.
-2. Add CI running `scripts/check`.
-3. Commit and push M00.
+1. Land M00 commit(s) (scaffold + scripts + CI) and verify CI is green.
+2. M01: Import Starknet AA Agent Account contract (baseline safety rails) + tests.
+3. M02: Mobile signing stack decision + wallet read-only flows.
 
 ## How To Verify
 
-- Not applicable yet (no runnable code in repo).
-
+- Repo checks: `./scripts/check`
+- Mobile dev server: `./scripts/app/dev`
+- Contracts tests: `./scripts/contracts/test`
