@@ -31,7 +31,7 @@ Start from `keep-starknet-strange/starknet-agentic` `contracts/agent-account`:
 <do>
 - Enforce safety on-chain; off-chain checks are for UX only.
 - Prefer bounded approvals (or avoid approvals) in MVP.
-- Treat any \"unlimited approve\" path as a security bug unless explicitly required and policy-bounded.
+- Treat any "unlimited approve" path as a security bug unless explicitly required and policy-bounded.
 </do>
 <dont>
 - Don't change policy field semantics without updating mobile UI, signing, and tests together.
@@ -41,5 +41,5 @@ Start from `keep-starknet-strange/starknet-agentic` `contracts/agent-account`:
 
 <troubleshooting>
 - If signatures fail: verify hash calculation, chain id, tx version, and signature element ordering.
-- If policy enforcement fails unexpectedly: inspect selectors treated as \"spending selectors\" in the contract and confirm calldata layout.
+- If policy enforcement fails unexpectedly: inspect selectors treated as "spending selectors" in the contract and confirm calldata layout.
 </troubleshooting>

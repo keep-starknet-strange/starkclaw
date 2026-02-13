@@ -41,14 +41,14 @@ Markdown-only repo (no app/contracts yet).
 <conventions>
 <do>
 - Work in vertical slices; each slice ends in a runnable artifact + checks + commit + push.
-- Update `STATUS.md` every milestone with \"How To Verify\".
+- Update `STATUS.md` every milestone with "How To Verify".
 - Prefer deterministic scripts over ad-hoc commands (CI should call the same scripts).
 - Keep secrets out of git, logs, crash output, and LLM prompts.
 - Keep changes small and reversible; avoid large rewrites until MVP demo works.
 </do>
 <dont>
-- Don't implement \"TEE / attestation / ZK\" (explicit non-goal for MVP).
-- Don't add \"unlimited approvals\" defaults; approvals must be bounded or avoided.
+- Don't implement "TEE / attestation / ZK" (explicit non-goal for MVP).
+- Don't add "unlimited approvals" defaults; approvals must be bounded or avoided.
 - Don't let the model construct raw calldata unsafely; app constructs txs from validated params.
 </dont>
 </conventions>

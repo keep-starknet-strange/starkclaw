@@ -25,7 +25,7 @@ Build a premium-feeling Expo app that makes safety rails legible: policies are v
 <patterns>
 <do>
 - Always show a deterministic transaction preview card before execution.
-- Make \"Emergency revoke all\" reachable within 2 taps from the main UI.
+- Make "Emergency revoke all" reachable within 2 taps from the main UI.
 - Keep network calls behind a thin client with timeouts/retries and typed errors.
 </do>
 <dont>
