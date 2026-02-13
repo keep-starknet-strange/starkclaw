@@ -2,8 +2,6 @@
 
 Status: Draft v1 (2026-02-13)
 
-This document is the expanded, implementation-oriented spec. The original draft notes and background context are preserved in `spec.draft.md`.
-
 ## One-Liner
 
 Starkclaw is a mobile personal agent that can execute Starknet transactions through on-chain enforced safety policies (session keys, spend caps, and allow/deny rules) so users can safely delegate financial actions.
