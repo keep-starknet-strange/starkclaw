@@ -55,6 +55,19 @@ export default function SettingsModal() {
 
       <GlassCard>
         <View style={{ gap: 12 }}>
+          <H2>Agent runtime</H2>
+          <GhostButton
+            label="LLM provider settings"
+            onPress={async () => {
+              await haptic("tap");
+              router.push("/llm-settings");
+            }}
+          />
+        </View>
+      </GlassCard>
+
+      <GlassCard>
+        <View style={{ gap: 12 }}>
           <H2>Controls</H2>
           <GhostButton
             label={mode === "demo" ? "Switch to Live mode" : "Switch to Demo mode"}
