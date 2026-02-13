@@ -1,22 +1,29 @@
 import * as React from "react";
-import { View } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, { FadeInDown } from "react-native-reanimated";
 
+import { useLiveActivity } from "@/lib/activity/use-live-activity";
+import type { ActivityStatus } from "@/lib/activity/activity";
 import { useDemo } from "@/lib/demo/demo-store";
+import { useWallet } from "@/lib/wallet/wallet-store";
 import { AppIcon } from "@/ui/app-icon";
+import { Badge } from "@/ui/badge";
 import { Chip } from "@/ui/chip";
 import { Divider } from "@/ui/divider";
 import { GlassCard } from "@/ui/glass-card";
 import { haptic } from "@/ui/haptics";
 import { useAppTheme } from "@/ui/app-theme";
 import { AppScreen, Row } from "@/ui/screen";
-import { Body, H1, H2, Muted } from "@/ui/typography";
+import { Body, H1, H2, Mono, Muted } from "@/ui/typography";
 
-type InboxTab = "alerts" | "activity";
+type InboxTab = "alerts" | "activity" | "live";
 
 export default function InboxScreen() {
   const { state, actions } = useDemo();
+  const walletStore = useWallet();
+  const liveActivity = useLiveActivity(walletStore.wallet?.rpcUrl ?? null);
+  const hasWallet = walletStore.status === "ready";
   const [tab, setTab] = React.useState<InboxTab>("alerts");
 
   const unread = state.alerts.filter((a) => !a.read).length;
@@ -52,6 +59,17 @@ export default function InboxScreen() {
                     setTab("activity");
                   }}
                 />
+                {hasWallet ? (
+                  <Chip
+                    label="Live txs"
+                    selected={tab === "live"}
+                    tone="accent"
+                    onPress={async () => {
+                      await haptic("tap");
+                      setTab("live");
+                    }}
+                  />
+                ) : null}
               </View>
             </Row>
 
@@ -82,12 +100,14 @@ export default function InboxScreen() {
                   }}
                 />
               </View>
-            ) : (
+            ) : tab === "activity" ? (
               <View style={{ gap: 10 }}>
                 {state.activity.map((it) => (
                   <ActivityRow key={it.id} title={it.title} subtitle={it.subtitle ?? ""} when={timeAgo(it.createdAt)} meta={it.meta ?? ""} />
                 ))}
               </View>
+            ) : (
+              <LiveTxsTab liveActivity={liveActivity} />
             )}
           </View>
         </GlassCard>
@@ -192,6 +212,65 @@ function ActivityRow(props: { title: string; subtitle: string; when: string; met
       {props.subtitle ? <Muted>{props.subtitle}</Muted> : null}
       {props.meta ? <Muted style={{ color: t.colors.muted }}>{props.meta}</Muted> : null}
       <Divider />
+    </View>
+  );
+}
+
+function statusTone(status: ActivityStatus): "good" | "danger" | "warn" | "neutral" {
+  switch (status) {
+    case "succeeded": return "good";
+    case "reverted": return "danger";
+    case "pending": return "warn";
+    case "unknown": return "neutral";
+  }
+}
+
+function statusLabel(status: ActivityStatus): string {
+  switch (status) {
+    case "succeeded": return "Confirmed";
+    case "reverted": return "Reverted";
+    case "pending": return "Pending";
+    case "unknown": return "Unknown";
+  }
+}
+
+function LiveTxsTab(props: { liveActivity: ReturnType<typeof useLiveActivity> }) {
+  const t = useAppTheme();
+  const { items, loading, hasPending, refresh } = props.liveActivity;
+
+  return (
+    <View style={{ gap: 12 }}>
+      <Row>
+        <Muted>{items.length ? `${items.length} transaction${items.length === 1 ? "" : "s"}` : "No transactions yet"}</Muted>
+        {loading ? (
+          <ActivityIndicator size="small" />
+        ) : (
+          <Chip label="Refresh" onPress={refresh} />
+        )}
+      </Row>
+
+      {hasPending ? <Muted>Polling for status updates...</Muted> : null}
+
+      <View style={{ gap: 10 }}>
+        {items.map((item) => (
+          <View key={item.id} style={{ gap: 6 }}>
+            <Row>
+              <Body style={{ fontFamily: t.font.bodyMedium }}>{item.summary}</Body>
+              <Badge label={statusLabel(item.status)} tone={statusTone(item.status)} />
+            </Row>
+            {item.txHash ? (
+              <Mono selectable style={{ color: t.colors.muted, fontSize: 12 }}>
+                {item.txHash.slice(0, 14)}…{item.txHash.slice(-8)}
+              </Mono>
+            ) : null}
+            {item.revertReason ? (
+              <Body style={{ color: t.colors.bad, fontSize: 13 }}>{item.revertReason}</Body>
+            ) : null}
+            <Muted>{timeAgo(item.createdAt)}</Muted>
+            <Divider />
+          </View>
+        ))}
+      </View>
     </View>
   );
 }
