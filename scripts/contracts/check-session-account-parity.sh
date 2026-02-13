@@ -19,6 +19,9 @@ UPSTREAM="${UPSTREAM_SESSION_ACCOUNT_PATH:-$ROOT_DIR/../starknet-agentic/contrac
 OUTPUT_JSON="${PARITY_OUTPUT_JSON:-}"
 OUTPUT_MD="${PARITY_OUTPUT_MD:-}"
 
+# Prerequisites (jq required for machine-readable output)
+command -v jq >/dev/null 2>&1 || { echo '{"error":"jq required","pass":false,"summary":"ERROR"}' >&2; exit 127; }
+
 # Expected files (relative to upstream root)
 EXPECTED_FILES=(
   "src/lib.cairo"

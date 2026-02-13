@@ -22,6 +22,7 @@
 | **CI** | `session-parity-audit` job | ⬜ | Parity script + docs check pass |
 | **Docs** | Migration audit | ⬜ | `SESSION_ACCOUNT_MIGRATION_AUDIT.md` |
 | **Docs** | Rebase guide | ⬜ | `PR43_PR44_REBASE_GUIDE.md` |
+| **Tests** | Parity TDD tests | ⬜ | `./scripts/contracts/test-parity-audit.sh` |
 
 ---
 

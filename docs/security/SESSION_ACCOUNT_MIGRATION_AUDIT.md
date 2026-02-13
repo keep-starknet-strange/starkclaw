@@ -155,3 +155,12 @@ struct SessionData {
 - `apps/mobile/lib/starknet/session-signer.ts`
 - Transfer execution path
 - Any runtime behavior changes
+
+---
+
+## 5. Verification (Auditor Checklist)
+
+1. **Parity script:** `./scripts/contracts/check-session-account-parity.sh` — must pass with valid upstream path.
+2. **TDD tests:** `./scripts/contracts/test-parity-audit.sh` — all tests must pass.
+3. **Cross-check:** Compare §1–§3 above against `starknet-agentic/contracts/session-account` source.
+4. **CI:** `.github/workflows/session-parity-audit.yml` runs parity + TDD tests on push/PR.

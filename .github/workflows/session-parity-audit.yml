@@ -22,12 +22,18 @@ jobs:
           path: starknet-agentic
           ref: main
 
-      - name: Check session-account parity
+      - name: Run parity TDD tests
         env:
           UPSTREAM_SESSION_ACCOUNT_PATH: ${{ github.workspace }}/starknet-agentic/contracts/session-account
         run: |
           chmod +x scripts/contracts/check-session-account-parity.sh
-          ./scripts/contracts/check-session-account-parity.sh
+          chmod +x scripts/contracts/test-parity-audit.sh
+          ./scripts/contracts/test-parity-audit.sh
+
+      - name: Check session-account parity
+        env:
+          UPSTREAM_SESSION_ACCOUNT_PATH: ${{ github.workspace }}/starknet-agentic/contracts/session-account
+        run: ./scripts/contracts/check-session-account-parity.sh
 
       - name: Output parity JSON
         if: always()
