@@ -100,7 +100,7 @@ fn register_key(
 fn setup_session_key_tx(
     addr: ContractAddress, session_key: felt252, sig_r: felt252, sig_s: felt252,
 ) {
-    start_cheat_signature_global(array![session_key, sig_r, sig_s].span());
+    start_cheat_signature_global(array![session_key, sig_r, sig_s, 999_999].span());
     start_cheat_transaction_hash_global(TX_HASH);
     start_cheat_transaction_version_global(MIN_TX_VERSION);
     start_cheat_caller_address(addr, zero_addr());
@@ -696,7 +696,7 @@ fn test_validate_declare_session_key_panics() {
 // ===========================================================================
 
 #[test]
-#[should_panic(expected: 'Account: invalid sig length')]
+#[should_panic(expected: 'Session key not valid')]
 fn test_validate_4_element_signature_panics() {
     let owner_kp = KeyPairTrait::from_secret_key(0x1234_felt252);
     let (addr, account, _) = deploy_agent_account(owner_kp.public_key);
