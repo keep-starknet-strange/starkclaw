@@ -10,6 +10,7 @@ import { useEffect } from "react";
 import "react-native-reanimated";
 
 import { DemoProvider, useDemo } from "@/lib/demo/demo-store";
+import { WalletProvider } from "@/lib/wallet/wallet-store";
 import { navThemeFromAppTheme, useAppTheme } from "@/ui/app-theme";
 
 export {
@@ -52,9 +53,11 @@ export default function RootLayout() {
   }
 
   return (
-    <DemoProvider>
-      <RootLayoutNav />
-    </DemoProvider>
+    <WalletProvider>
+      <DemoProvider>
+        <RootLayoutNav />
+      </DemoProvider>
+    </WalletProvider>
   );
 }
 
