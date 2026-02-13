@@ -132,6 +132,7 @@ export async function executeTransfer(params: {
     rpcUrl: params.wallet.rpcUrl,
     accountAddress: params.wallet.accountAddress,
     sessionPrivateKey: pk,
+    sessionValidUntil: params.action.policy.validUntil,
     sessionPublicKey: params.action.sessionPublicKey,
   });
 

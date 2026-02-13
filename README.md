@@ -90,7 +90,7 @@ On-chain enforcement (in `__execute__`) includes:
 Signature convention:
 
 - Owner tx signature: `[r, s]`
-- Session key tx signature: `[session_key_pubkey, r, s]`
+- Session key tx signature: `[session_key_pubkey, r, s, valid_until]`
 
 The policy is the source of truth. The “agent” UI is just a safer way to produce intents.
 

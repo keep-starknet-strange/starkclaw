@@ -18,12 +18,12 @@ export function createSessionAccount(opts: {
   rpcUrl: string;
   accountAddress: string;
   sessionPrivateKey: string;
+  sessionValidUntil: number;
   sessionPublicKey?: string;
 }): Account {
   return new Account({
     provider: { nodeUrl: opts.rpcUrl },
     address: opts.accountAddress,
-    signer: new SessionKeySigner(opts.sessionPrivateKey, opts.sessionPublicKey),
+    signer: new SessionKeySigner(opts.sessionPrivateKey, opts.sessionValidUntil, opts.sessionPublicKey),
   });
 }
-
