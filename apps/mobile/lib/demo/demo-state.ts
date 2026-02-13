@@ -67,6 +67,42 @@ export type DemoAgentMessage = {
 
 export type DemoProposalKind = "trade" | "policy" | "transfer";
 
+export type DemoProposalEffect =
+  | {
+      type: "trade";
+      from: DemoTokenSymbol;
+      to: DemoTokenSymbol;
+      amount: number;
+      maxSlippagePct: number;
+    }
+  | {
+      type: "policy_caps";
+      dailySpendCapUsd: number;
+      perTxCapUsd: number;
+    }
+  | {
+      type: "policy_lockdown";
+      enabled: boolean;
+    }
+  | {
+      type: "allowlist_recipient";
+      recipient: string;
+    }
+  | {
+      type: "agent_autopilot";
+      enabled: boolean;
+    }
+  | {
+      type: "agent_quiet_hours";
+      enabled: boolean;
+    }
+  | {
+      type: "transfer";
+      to: string;
+      tokenSymbol: DemoTokenSymbol;
+      amount: number;
+    };
+
 export type DemoProposal = {
   id: string;
   createdAt: number; // unix seconds
@@ -76,6 +112,7 @@ export type DemoProposal = {
   status: "pending" | "approved" | "rejected";
   risk: "low" | "medium" | "high";
   details: Record<string, string>;
+  effect?: DemoProposalEffect;
 };
 
 export type DemoAccount = {
@@ -120,6 +157,14 @@ function randomHex(len: number): string {
   return out;
 }
 
+function shortenHex(input: string): string {
+  const s = input.trim();
+  if (!s) return s;
+  if (s.length <= 18) return s;
+  if (!s.startsWith("0x")) return s.slice(0, 16) + "…";
+  return `${s.slice(0, 10)}…${s.slice(-6)}`;
+}
+
 export function makeMockAddress(): string {
   return `0x${randomHex(64)}`;
 }
@@ -131,7 +176,7 @@ function id(prefix: string): string {
 export function createInitialDemoState(): DemoState {
   const t = nowSec();
   const address = makeMockAddress();
-  const allowlist = [makeMockAddress(), makeMockAddress()].map((a) => a.slice(0, 18) + "…" + a.slice(-6));
+  const allowlist = [makeMockAddress(), makeMockAddress()].map(shortenHex);
 
   return {
     version: 1,
@@ -229,18 +274,24 @@ export function createInitialDemoState(): DemoState {
           createdAt: t - 60 * 22,
           kind: "trade",
           title: "Rebalance: STRK → USDC",
-          summary: "Swap 120 STRK for ~206 USDC if slippage < 0.6%.",
+          summary: "Swap 40 STRK for ~69 USDC if slippage < 0.6%.",
           status: "pending",
           risk: "low",
           details: {
             Route: "STRK → USDC (best-price)",
             Slippage: "0.60% max",
-            Fees: "~$0.41",
-            Policy: "Within daily spend cap",
+            Fees: "~$0.17",
+            Policy: "Within per-tx cap",
+          },
+          effect: {
+            type: "trade",
+            from: "STRK",
+            to: "USDC",
+            amount: 40,
+            maxSlippagePct: 0.6,
           },
         },
       ],
     },
   };
 }
-

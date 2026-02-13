@@ -75,6 +75,26 @@ export function Body(props: TextProps) {
   );
 }
 
+export function Metric(props: TextProps) {
+  const t = useAppTheme();
+  return (
+    <Text
+      {...props}
+      style={[
+        {
+          fontFamily: t.font.bodySemibold,
+          fontSize: 30,
+          lineHeight: 34,
+          letterSpacing: -0.4,
+          fontVariant: ["tabular-nums"],
+          color: t.colors.text,
+        },
+        props.style,
+      ]}
+    />
+  );
+}
+
 export function Muted(props: TextProps) {
   const t = useAppTheme();
   return (
@@ -110,4 +130,3 @@ export function Mono(props: TextProps) {
     />
   );
 }
-

@@ -1,17 +1,17 @@
 import * as React from "react";
-import { Pressable, View } from "react-native";
+import { Pressable, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import Animated, { FadeInDown } from "react-native-reanimated";
 
 import { useDemo } from "@/lib/demo/demo-store";
-import { GhostButton } from "@/ui/buttons";
+import { GhostButton, PrimaryButton } from "@/ui/buttons";
 import { AppIcon } from "@/ui/app-icon";
 import { GlassCard } from "@/ui/glass-card";
 import { haptic } from "@/ui/haptics";
 import { useAppTheme } from "@/ui/app-theme";
 import { AppScreen, Row } from "@/ui/screen";
 import { formatPct, formatUsd } from "@/ui/format";
-import { Body, H1, H2, Mono, Muted } from "@/ui/typography";
+import { Body, H1, H2, Metric, Mono, Muted } from "@/ui/typography";
 
 function portfolioTotalUsd(balances: { amount: number; usdPrice: number }[]): number {
   return balances.reduce((sum, b) => sum + b.amount * b.usdPrice, 0);
@@ -21,6 +21,7 @@ export default function HomeScreen() {
   const t = useAppTheme();
   const router = useRouter();
   const { state, actions } = useDemo();
+  const [draft, setDraft] = React.useState("");
 
   const name = state.onboarding.displayName.trim();
   const total = portfolioTotalUsd(state.portfolio.balances);
@@ -64,9 +65,7 @@ export default function HomeScreen() {
             <Row>
               <View style={{ gap: 2 }}>
                 <Muted>Portfolio</Muted>
-                <Body style={{ fontFamily: t.font.bodySemibold, fontSize: 28, letterSpacing: -0.4, fontVariant: ["tabular-nums"] }}>
-                  {formatUsd(total)}
-                </Body>
+                <Metric>{formatUsd(total)}</Metric>
               </View>
               <View style={{ alignItems: "flex-end", gap: 2 }}>
                 <Muted>24h</Muted>
@@ -161,7 +160,67 @@ export default function HomeScreen() {
         </GlassCard>
       </Animated.View>
 
-      <Animated.View entering={FadeInDown.delay(200).duration(420)} style={{ gap: 10 }}>
+      <Animated.View entering={FadeInDown.delay(180).duration(420)}>
+        <GlassCard>
+          <View style={{ gap: 12 }}>
+            <Row>
+              <H2>Ask Starkclaw</H2>
+              <View
+                style={{
+                  paddingVertical: 6,
+                  paddingHorizontal: 10,
+                  borderRadius: 999,
+                  borderWidth: 1,
+                  borderColor: t.colors.glassBorder,
+                  backgroundColor: t.scheme === "dark" ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.55)",
+                }}
+              >
+                <Body style={{ fontFamily: t.font.bodyMedium, color: t.colors.muted }}>Mocked</Body>
+              </View>
+            </Row>
+
+            <TextInput
+              value={draft}
+              onChangeText={setDraft}
+              placeholder="Try: swap 50 STRK to USDC…"
+              placeholderTextColor={t.scheme === "dark" ? "rgba(234,240,246,0.35)" : "rgba(11,18,32,0.35)"}
+              autoCapitalize="none"
+              style={{
+                paddingVertical: 12,
+                paddingHorizontal: 12,
+                borderRadius: t.radius.md,
+                borderCurve: "continuous",
+                borderWidth: 1,
+                borderColor: t.colors.glassBorder,
+                backgroundColor: t.scheme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.7)",
+                color: t.colors.text,
+                fontFamily: t.font.body,
+                fontSize: 15,
+              }}
+            />
+
+            <PrimaryButton
+              label="Send to agent"
+              disabled={!draft.trim()}
+              onPress={async () => {
+                await haptic("tap");
+                actions.sendAgentMessage(draft);
+                setDraft("");
+                router.push("/agent");
+              }}
+            />
+
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+              <PromptChip label="rebalance" onPress={() => setDraft("rebalance")} />
+              <PromptChip label="set caps to 200/day, 60/tx" onPress={() => setDraft("set caps to $200/day and $60/tx")} />
+              <PromptChip label="lockdown on" onPress={() => setDraft("enable emergency lockdown")} />
+              <PromptChip label="allowlist 0xabc…" onPress={() => setDraft("allowlist 0xabc123…")} />
+            </View>
+          </View>
+        </GlassCard>
+      </Animated.View>
+
+      <Animated.View entering={FadeInDown.delay(230).duration(420)} style={{ gap: 10 }}>
         <Row style={{ gap: 10 }}>
           <QuickAction label="Trade" onPress={() => router.push("/trade")} />
           <QuickAction label="Policies" onPress={() => router.push("/policies")} />
@@ -180,7 +239,7 @@ export default function HomeScreen() {
       </Animated.View>
 
       {pending ? (
-        <Animated.View entering={FadeInDown.delay(250).duration(420)}>
+        <Animated.View entering={FadeInDown.delay(280).duration(420)}>
           <GlassCard>
             <View style={{ gap: 10 }}>
               <Row>
@@ -201,7 +260,7 @@ export default function HomeScreen() {
         </Animated.View>
       ) : null}
 
-      <Animated.View entering={FadeInDown.delay(280).duration(420)}>
+      <Animated.View entering={FadeInDown.delay(320).duration(420)}>
         <GlassCard>
           <View style={{ gap: 12 }}>
             <Row>
@@ -285,4 +344,27 @@ function timeAgo(createdAtSec: number): string {
   if (h < 24) return `${h}h`;
   const d = Math.floor(h / 24);
   return `${d}d`;
+}
+
+function PromptChip(props: { label: string; onPress: () => void }) {
+  const t = useAppTheme();
+  return (
+    <Pressable
+      onPress={async () => {
+        await haptic("tap");
+        props.onPress();
+      }}
+      style={({ pressed }) => ({
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 999,
+        borderWidth: 1,
+        borderColor: t.colors.glassBorder,
+        backgroundColor: t.scheme === "dark" ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.55)",
+        opacity: pressed ? 0.85 : 1,
+      })}
+    >
+      <Body style={{ fontFamily: t.font.bodyMedium, color: t.colors.text }}>{props.label}</Body>
+    </Pressable>
+  );
 }
