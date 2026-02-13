@@ -4,7 +4,7 @@ Last updated: 2026-02-13
 
 ## Current Milestone
 
-M06: End-To-End MVP Demo (Constrained Transfer)
+M09 (Subset): Audit Export + Hardening
 
 ## Completed
 
@@ -17,15 +17,16 @@ M06: End-To-End MVP Demo (Constrained Transfer)
 - M03 deploy from mobile: funding UX + deploy account transaction flow.
 - M04 policy UI: create/register/revoke session keys with on-chain policy.
 - M05 agent v0: chat-like UI with deterministic transfer planning + explicit execute button.
+- M06 constrained transfer: session-key transfers + on-chain denial UX + Activity screen.
 
 ## In Progress
 
-- M06: Constrained transfer demo + denial UX + activity log
+- M09 (subset): lightweight audit export (JSON) + error hardening
 
 ## Next Up
 
-1. Add tx/activity log UI (deploy + policy + transfer) with explorer links (M06).
-2. Add lightweight audit log export (JSON) (M09 subset).
+1. Add lightweight audit log export (JSON) from `Activity` (M09 subset).
+2. Hardening: clearer RPC error surfaces + RPC fallback list (M09 subset).
 
 ## How To Verify
 
