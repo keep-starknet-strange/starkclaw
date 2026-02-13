@@ -182,15 +182,15 @@ Workflow:
 3. Run `./scripts/check` before opening a PR.
 4. Update `STATUS.md` when you change the verification story.
 
-## Security Notes
+## Security
 
 This is experimental software.
 
 - Do not use mainnet funds.
 - Do not assume the contract or app is hardened against real adversaries.
-- The core security claim is *bounded authority* via on-chain policy, not “the agent is safe”.
+- The core security claim is *bounded authority* via on-chain policy, not "the agent is safe".
 
-If you find a vulnerability, please open a responsible disclosure issue with minimal exploit detail.
+If you find a vulnerability, please report it responsibly. See [SECURITY.md](./SECURITY.md) for reporting guidelines.
 
 ## Acknowledgements
 
