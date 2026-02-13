@@ -35,7 +35,7 @@ export default function AgentScreen() {
             contentInsetAdjustmentBehavior="automatic"
             contentContainerStyle={{
               paddingHorizontal: 18,
-              paddingTop: 14,
+              paddingTop: 14 + (process.env.EXPO_OS === "ios" ? 0 : insets.top),
               paddingBottom: 150 + insets.bottom,
               gap: 14,
             }}

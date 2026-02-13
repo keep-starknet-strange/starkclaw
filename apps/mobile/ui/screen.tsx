@@ -6,6 +6,7 @@ import { AppBackground } from "./app-background";
 
 export function AppScreen(props: { children: React.ReactNode }) {
   const insets = useSafeAreaInsets();
+  const padTop = 14 + (process.env.EXPO_OS === "ios" ? 0 : insets.top);
 
   return (
     <AppBackground>
@@ -13,7 +14,7 @@ export function AppScreen(props: { children: React.ReactNode }) {
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{
           paddingHorizontal: 18,
-          paddingTop: 14,
+          paddingTop: padTop,
           paddingBottom: 110 + insets.bottom,
           gap: 14,
         }}
@@ -31,4 +32,3 @@ export function Row(props: { children: React.ReactNode; style?: any }) {
     </View>
   );
 }
-
