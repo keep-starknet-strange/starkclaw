@@ -5,6 +5,7 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useDemo } from "@/lib/demo/demo-store";
+import { requireOwnerAuth } from "@/lib/security/owner-auth";
 import { GhostButton, PrimaryButton } from "@/ui/buttons";
 import { GlassCard } from "@/ui/glass-card";
 import { haptic } from "@/ui/haptics";
@@ -154,6 +155,17 @@ export default function AgentScreen() {
                         <PrimaryButton
                           label="Approve"
                           onPress={async () => {
+                            try {
+                              await requireOwnerAuth({ reason: "Approve agent action" });
+                            } catch (e) {
+                              await haptic("warn");
+                              actions.triggerAlert(
+                                "Approval cancelled",
+                                e instanceof Error ? e.message : "Owner confirmation failed.",
+                                "warn"
+                              );
+                              return;
+                            }
                             await haptic("success");
                             actions.approveProposal(p.id);
                           }}
@@ -328,4 +340,3 @@ function MessageBubble(props: { role: "user" | "assistant"; text: string }) {
     </View>
   );
 }
-

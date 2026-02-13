@@ -147,7 +147,7 @@ export default function HomeScreen() {
         <Row style={{ gap: 10 }}>
           <QuickAction
             label="Trigger alert"
-            onPress={() => actions.triggerAlert("Spend cap warning", "A simulated action hit your per-tx cap.")}
+            onPress={() => actions.triggerAlert("Spend cap warning", "A simulated action hit your per-tx cap.", "warn")}
           />
           <QuickAction
             label={state.policy.emergencyLockdown ? "Unlock" : "Lockdown"}
@@ -264,4 +264,3 @@ function timeAgo(createdAtSec: number): string {
   const d = Math.floor(h / 24);
   return `${d}d`;
 }
-

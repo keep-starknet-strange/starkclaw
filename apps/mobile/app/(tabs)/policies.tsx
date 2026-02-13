@@ -3,6 +3,7 @@ import { Pressable, Switch, TextInput, View } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 
 import { useDemo } from "@/lib/demo/demo-store";
+import { requireOwnerAuth } from "@/lib/security/owner-auth";
 import { GhostButton, PrimaryButton } from "@/ui/buttons";
 import { GlassCard } from "@/ui/glass-card";
 import { haptic } from "@/ui/haptics";
@@ -213,6 +214,17 @@ export default function PoliciesScreen() {
               <Switch
                 value={state.policy.emergencyLockdown}
                 onValueChange={async (v) => {
+                  try {
+                    await requireOwnerAuth({ reason: "Toggle emergency lockdown" });
+                  } catch (e) {
+                    await haptic("warn");
+                    actions.triggerAlert(
+                      "Lockdown not changed",
+                      e instanceof Error ? e.message : "Owner confirmation failed.",
+                      "warn"
+                    );
+                    return;
+                  }
                   await haptic("warn");
                   actions.setEmergencyLockdown(v);
                 }}
@@ -304,4 +316,3 @@ function Segment<T extends string>(props: {
     </View>
   );
 }
-

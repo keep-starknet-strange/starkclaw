@@ -1,12 +1,15 @@
 import * as React from "react";
 import { Tabs } from "expo-router";
 import { BlurView } from "expo-blur";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAppTheme } from "@/ui/app-theme";
 import { AppIcon } from "@/ui/app-icon";
 
 export default function TabLayout() {
   const t = useAppTheme();
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = 56 + insets.bottom;
 
   return (
     <Tabs
@@ -18,7 +21,9 @@ export default function TabLayout() {
           position: "absolute",
           borderTopWidth: 0,
           backgroundColor: "transparent",
-          height: 74,
+          height: tabBarHeight,
+          paddingBottom: Math.max(10, insets.bottom - 6),
+          paddingTop: 8,
         },
         tabBarBackground: () => (
           <BlurView
@@ -34,7 +39,7 @@ export default function TabLayout() {
         tabBarLabelStyle: {
           fontFamily: t.font.bodyMedium,
           fontSize: 11,
-          marginTop: -4,
+          marginTop: -6,
         },
       }}>
       <Tabs.Screen

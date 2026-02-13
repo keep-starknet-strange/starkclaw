@@ -21,6 +21,7 @@ export function PrimaryButton(props: {
       style={({ pressed }) => [
         {
           borderRadius: t.radius.lg,
+          borderCurve: "continuous",
           overflow: "hidden",
           opacity: disabled ? 0.5 : 1,
           transform: [{ scale: pressed ? 0.98 : 1 }],
@@ -64,6 +65,7 @@ export function GhostButton(props: {
           paddingVertical: 12,
           paddingHorizontal: 14,
           borderRadius: t.radius.lg,
+          borderCurve: "continuous",
           borderWidth: 1,
           borderColor: t.colors.glassBorder,
           backgroundColor: t.scheme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.55)",

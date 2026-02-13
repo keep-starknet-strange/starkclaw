@@ -50,7 +50,7 @@ export default function InboxScreen() {
                   label="Trigger sample alert"
                   onPress={async () => {
                     await haptic("tap");
-                    actions.triggerAlert("Untrusted contract warning", "A simulated action touched an unknown contract.");
+                    actions.triggerAlert("Untrusted contract warning", "A simulated action touched an unknown contract.", "warn");
                   }}
                 />
               </View>

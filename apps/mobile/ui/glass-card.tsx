@@ -16,10 +16,11 @@ export function GlassCard(props: {
   const tint = t.scheme === "dark" ? "dark" : "light";
 
   return (
-    <View style={[{ borderRadius: t.radius.xl, boxShadow: t.shadow.card }, props.style]}>
+      <View style={[{ borderRadius: t.radius.xl, boxShadow: t.shadow.card }, props.style]}>
       <View
         style={{
           borderRadius: t.radius.xl,
+          borderCurve: "continuous",
           overflow: "hidden",
           borderWidth: 1,
           borderColor: t.colors.glassBorder,
@@ -33,4 +34,3 @@ export function GlassCard(props: {
     </View>
   );
 }
-

@@ -55,7 +55,7 @@ type DemoContextValue = {
     completeOnboarding: (input: CompleteOnboardingInput) => void;
     setAlertPref: (key: DemoAlertPrefKey, enabled: boolean) => void;
     markAllAlertsRead: () => void;
-    triggerAlert: (title: string, body: string) => void;
+    triggerAlert: (title: string, body: string, severity?: DemoState["alerts"][number]["severity"]) => void;
     setEmergencyLockdown: (enabled: boolean) => void;
     updateSpendCaps: (dailyUsd: number, perTxUsd: number) => void;
     setContractMode: (mode: DemoState["policy"]["contractAllowlistMode"]) => void;
@@ -153,7 +153,7 @@ export function DemoProvider(props: { children: React.ReactNode }) {
           ...s,
           alerts: s.alerts.map((a) => ({ ...a, read: true })),
         })),
-      triggerAlert: (title, body) =>
+      triggerAlert: (title, body, severity = "info") =>
         setState((s) => {
           const t = nowSec();
           const alert = {
@@ -161,7 +161,7 @@ export function DemoProvider(props: { children: React.ReactNode }) {
             createdAt: t,
             title,
             body,
-            severity: "info" as const,
+            severity,
             read: false,
           };
           return {

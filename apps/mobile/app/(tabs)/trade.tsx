@@ -173,7 +173,7 @@ export default function TradeScreen() {
               onPress={async () => {
                 await haptic("tap");
                 if (blocked) {
-                  actions.triggerAlert("Trade blocked", reason ?? "Policy denied this trade preview.");
+                  actions.triggerAlert("Trade blocked", reason ?? "Policy denied this trade preview.", "warn");
                   return;
                 }
                 setPreviewOpen(true);
@@ -297,4 +297,3 @@ function TokenRow(props: { label: string; value: Sym; onPick: (s: Sym) => void; 
     </View>
   );
 }
-
