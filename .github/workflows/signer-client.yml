@@ -1,0 +1,82 @@
+name: Signer Client Tests
+
+# Fast CI workflow for signer client module only
+# Issue: #54
+
+on:
+  push:
+    branches:
+      - main
+      - feat/54-sisna-client-groundwork
+    paths:
+      - 'apps/mobile/lib/signer/**'
+      - 'scripts/test/signer-client.sh'
+      - '.github/workflows/signer-client.yml'
+  pull_request:
+    paths:
+      - 'apps/mobile/lib/signer/**'
+      - 'scripts/test/signer-client.sh'
+      - '.github/workflows/signer-client.yml'
+
+jobs:
+  test:
+    name: Signer Client Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5 # Fast path - should complete quickly
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: apps/mobile/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: apps/mobile
+
+      - name: Run signer client tests
+        run: ./scripts/test/signer-client.sh
+
+      - name: Run tests with coverage
+        run: npm test -- --run --coverage lib/signer
+        working-directory: apps/mobile
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: apps/mobile/coverage/lcov.info
+          flags: signer-client
+          name: signer-client-coverage
+
+  lint:
+    name: Lint & Typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: apps/mobile/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: apps/mobile
+
+      - name: Run ESLint on signer module
+        run: npx eslint lib/signer --ext .ts
+        working-directory: apps/mobile
+
+      - name: Run TypeScript compiler check
+        run: npx tsc --noEmit
+        working-directory: apps/mobile
