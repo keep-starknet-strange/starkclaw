@@ -33,6 +33,7 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
+          cache-dependency-path: apps/mobile/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -42,7 +43,7 @@ jobs:
         run: ./scripts/test/signer-client.sh
 
       - name: Run tests with coverage
-        run: npm test -- --coverage apps/mobile/lib/signer
+        run: npm test -- --run --coverage lib/signer
         working-directory: apps/mobile
 
       - name: Upload coverage
@@ -66,6 +67,7 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
+          cache-dependency-path: apps/mobile/package-lock.json
 
       - name: Install dependencies
         run: npm ci

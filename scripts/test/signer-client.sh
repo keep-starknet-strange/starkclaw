@@ -26,20 +26,20 @@ if [ ! -d "apps/mobile/lib/signer" ]; then
 fi
 
 echo -e "${YELLOW}Running signer client unit tests...${NC}"
-npm test -- apps/mobile/lib/signer/__tests__/client.test.ts
+npm --prefix apps/mobile test -- --run lib/signer/__tests__/client.test.ts
 
 echo ""
 echo -e "${YELLOW}Running signer client mock server integration tests...${NC}"
-npm test -- apps/mobile/lib/signer/__tests__/client.mock-server.test.ts
+npm --prefix apps/mobile test -- --run lib/signer/__tests__/client.mock-server.test.ts
 
 echo ""
 echo -e "${GREEN}✓ All signer client tests passed!${NC}"
 echo ""
 
 # Optional: Run with coverage
-if [ "$1" = "--coverage" ]; then
+if [ "${1:-}" = "--coverage" ]; then
   echo -e "${YELLOW}Generating coverage report...${NC}"
-  npm test -- --coverage apps/mobile/lib/signer
+  npm --prefix apps/mobile test -- --run --coverage lib/signer
 fi
 
 echo "========================================="

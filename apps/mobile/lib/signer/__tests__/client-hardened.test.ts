@@ -664,7 +664,7 @@ describe('SignerClient - Security (Hardened)', () => {
     await client.signSessionTransaction(validRequest);
 
     expect(mockFetch).toHaveBeenCalledWith(
-      'https://signer.example.com/v1/sign-session-transaction',
+      'https://signer.example.com/v1/sign/session-transaction',
       expect.any(Object)
     );
   });
@@ -684,7 +684,7 @@ describe('SignerClient - Security (Hardened)', () => {
     await client.signSessionTransaction(validRequest);
 
     expect(mockFetch).toHaveBeenCalledWith(
-      'https://signer.example.com//v1/sign-session-transaction',
+      'https://signer.example.com/v1/sign/session-transaction',
       expect.any(Object)
     );
   });

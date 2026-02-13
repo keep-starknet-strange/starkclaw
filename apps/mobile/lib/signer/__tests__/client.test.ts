@@ -41,7 +41,7 @@ describe('SignerClient - Error Mapping', () => {
   });
 
   it('should map 200 success to SignSessionTransactionResponse', async () => {
-    mockFetch.mockResolvedValueOnce({
+    mockFetch.mockResolvedValue({
       ok: true,
       status: 200,
       json: async () => ({
@@ -59,7 +59,7 @@ describe('SignerClient - Error Mapping', () => {
   });
 
   it('should map 401 replay nonce to REPLAY_NONCE error', async () => {
-    mockFetch.mockResolvedValueOnce({
+    mockFetch.mockResolvedValue({
       ok: false,
       status: 401,
       json: async () => ({
@@ -81,7 +81,7 @@ describe('SignerClient - Error Mapping', () => {
   });
 
   it('should map 401 invalid signature/auth to INVALID_AUTH error', async () => {
-    mockFetch.mockResolvedValueOnce({
+    mockFetch.mockResolvedValue({
       ok: false,
       status: 401,
       json: async () => ({
@@ -101,7 +101,7 @@ describe('SignerClient - Error Mapping', () => {
   });
 
   it('should map 403 policy denied to POLICY_DENIED error', async () => {
-    mockFetch.mockResolvedValueOnce({
+    mockFetch.mockResolvedValue({
       ok: false,
       status: 403,
       json: async () => ({
@@ -123,7 +123,7 @@ describe('SignerClient - Error Mapping', () => {
   });
 
   it('should map 500 server error to SERVER_ERROR', async () => {
-    mockFetch.mockResolvedValueOnce({
+    mockFetch.mockResolvedValue({
       ok: false,
       status: 500,
       json: async () => ({
@@ -143,7 +143,7 @@ describe('SignerClient - Error Mapping', () => {
   });
 
   it('should map 503 unavailable to UNAVAILABLE error', async () => {
-    mockFetch.mockResolvedValueOnce({
+    mockFetch.mockResolvedValue({
       ok: false,
       status: 503,
       json: async () => ({
@@ -163,7 +163,7 @@ describe('SignerClient - Error Mapping', () => {
   });
 
   it('should map network timeout to TIMEOUT error', async () => {
-    mockFetch.mockRejectedValueOnce(new Error('Request timeout'));
+    mockFetch.mockRejectedValue(new Error('Request timeout'));
 
     await expect(client.signSessionTransaction(mockRequest)).rejects.toThrow(SignerClientError);
 
@@ -176,7 +176,7 @@ describe('SignerClient - Error Mapping', () => {
   });
 
   it('should map network error to NETWORK_ERROR', async () => {
-    mockFetch.mockRejectedValueOnce(new Error('Failed to fetch'));
+    mockFetch.mockRejectedValue(new Error('Failed to fetch'));
 
     await expect(client.signSessionTransaction(mockRequest)).rejects.toThrow(SignerClientError);
 
@@ -188,7 +188,7 @@ describe('SignerClient - Error Mapping', () => {
   });
 
   it('should map unknown status codes to UNKNOWN_ERROR', async () => {
-    mockFetch.mockResolvedValueOnce({
+    mockFetch.mockResolvedValue({
       ok: false,
       status: 418, // I'm a teapot
       json: async () => ({

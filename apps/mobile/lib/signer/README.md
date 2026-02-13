@@ -33,6 +33,7 @@ import { createSignerClient } from '@/lib/signer/client';
 const client = createSignerClient({
   baseUrl: 'https://signer.example.com',
   apiKey: process.env.SIGNER_API_KEY,
+  endpointPath: '/v1/sign/session-transaction',
   timeout: 5000,
 });
 

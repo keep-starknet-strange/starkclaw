@@ -140,6 +140,9 @@ function mapNetworkErrorToSignerError(error: unknown): SignerClientError {
  */
 export function createSignerClient(config: SignerClientConfig) {
   const timeout = config.timeout || 10000;
+  const normalizedBaseUrl = config.baseUrl.replace(/\/+$/, '');
+  const endpointPath = config.endpointPath || '/v1/sign/session-transaction';
+  const normalizedEndpointPath = endpointPath.startsWith('/') ? endpointPath : `/${endpointPath}`;
 
   return {
     /**
@@ -172,7 +175,7 @@ export function createSignerClient(config: SignerClientConfig) {
       const timeoutId = setTimeout(() => controller.abort(), timeout);
 
       try {
-        const response = await fetch(`${config.baseUrl}/v1/sign-session-transaction`, {
+        const response = await fetch(`${normalizedBaseUrl}${normalizedEndpointPath}`, {
           method: 'POST',
           headers,
           body: JSON.stringify({

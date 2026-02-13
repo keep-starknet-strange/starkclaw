@@ -60,6 +60,9 @@ export interface SignerClientConfig {
   /** Base URL of the SISNA signer service */
   baseUrl: string;
 
+  /** Signer endpoint path (default: /v1/sign/session-transaction) */
+  endpointPath?: string;
+
   /** API key for authentication */
   apiKey: string;
 

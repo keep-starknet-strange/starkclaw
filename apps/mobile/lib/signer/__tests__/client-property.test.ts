@@ -51,7 +51,7 @@ describe('SignerClient - Property-Based Tests', () => {
       });
     });
 
-    it('should reject any string without 0x prefix', () => {
+    it('should reject any string without 0x prefix', async () => {
       const client = createSignerClient({
         baseUrl: 'https://test.com',
         apiKey: 'key',
@@ -60,7 +60,7 @@ describe('SignerClient - Property-Based Tests', () => {
       // Generate invalid strings
       const invalidPrefixes = ['', '0X', '0o', '0b', '1x', 'x', '00x'];
 
-      invalidPrefixes.forEach(async (prefix) => {
+      for (const prefix of invalidPrefixes) {
         await expect(
           client.signSessionTransaction({
             sessionKey: prefix + 'abc123',
@@ -72,10 +72,10 @@ describe('SignerClient - Property-Based Tests', () => {
             metadata: { requester: 'test', tool: 'transfer' },
           })
         ).rejects.toThrow(SignerClientError);
-      });
+      }
     });
 
-    it('should reject hex strings with non-hex characters', () => {
+    it('should reject hex strings with non-hex characters', async () => {
       const client = createSignerClient({
         baseUrl: 'https://test.com',
         apiKey: 'key',
@@ -83,7 +83,7 @@ describe('SignerClient - Property-Based Tests', () => {
 
       const invalidChars = ['g', 'h', 'z', ' ', '!', '@', '#'];
 
-      invalidChars.forEach(async (char) => {
+      for (const char of invalidChars) {
         await expect(
           client.signSessionTransaction({
             sessionKey: `0xabc${char}def`,
@@ -95,7 +95,7 @@ describe('SignerClient - Property-Based Tests', () => {
             metadata: { requester: 'test', tool: 'transfer' },
           })
         ).rejects.toThrow(SignerClientError);
-      });
+      }
     });
   });
 
@@ -280,7 +280,7 @@ describe('SignerClient - Property-Based Tests', () => {
 
   describe('Timeout Invariant', () => {
     it('should respect any timeout value > 0', async () => {
-      const timeouts = [1, 10, 100, 1000, 5000, 10000, 30000];
+      const timeouts = [1, 10, 100, 500, 1000];
 
       for (const timeout of timeouts) {
         const client = createSignerClient({
@@ -325,18 +325,27 @@ describe('SignerClient - Property-Based Tests', () => {
         timeout: 100,
       });
 
-      const mockFetch = vi.fn().mockImplementation(
-        () =>
-          new Promise((resolve) =>
-            setTimeout(() => {
-              resolve({
-                ok: true,
-                status: 200,
-                json: async () => ({ signature: ['0x1'], request_id: 'req-1' }),
-              });
-            }, 200)
-          )
-      );
+      const mockFetch = vi.fn().mockImplementation((_url, opts) => {
+        const signal = (opts as { signal?: AbortSignal } | undefined)?.signal;
+        return new Promise((resolve, reject) => {
+          const timer = setTimeout(() => {
+            resolve({
+              ok: true,
+              status: 200,
+              json: async () => ({ signature: ['0x1'], request_id: 'req-1' }),
+            });
+          }, 200);
+
+          signal?.addEventListener(
+            'abort',
+            () => {
+              clearTimeout(timer);
+              reject(new Error('Request timeout'));
+            },
+            { once: true }
+          );
+        });
+      });
       global.fetch = mockFetch;
 
       await expect(

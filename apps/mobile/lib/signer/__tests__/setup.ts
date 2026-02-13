@@ -3,19 +3,16 @@
  * Configures global test environment
  */
 
-import { beforeAll, afterAll, afterEach, vi } from 'vitest';
+import { beforeEach, afterEach, vi } from 'vitest';
 
-// Setup global fetch mock
-beforeAll(() => {
-  global.fetch = vi.fn();
+const realFetch = global.fetch.bind(globalThis);
+
+beforeEach(() => {
+  global.fetch = realFetch as typeof global.fetch;
 });
 
 // Cleanup after each test
 afterEach(() => {
-  vi.clearAllMocks();
-});
-
-// Global teardown
-afterAll(() => {
   vi.restoreAllMocks();
+  global.fetch = realFetch as typeof global.fetch;
 });
