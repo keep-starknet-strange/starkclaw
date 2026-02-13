@@ -49,10 +49,10 @@ EXPECTED_SYMBOLS=(
 )
 
 # Results
-declare -a MISSING_FILES
-declare -a MISSING_SYMBOLS
-declare -a FOUND_FILES
-declare -a FOUND_SYMBOLS
+declare -a MISSING_FILES=()
+declare -a MISSING_SYMBOLS=()
+declare -a FOUND_FILES=()
+declare -a FOUND_SYMBOLS=()
 
 for f in "${EXPECTED_FILES[@]}"; do
   if [[ -f "$UPSTREAM/$f" ]]; then
