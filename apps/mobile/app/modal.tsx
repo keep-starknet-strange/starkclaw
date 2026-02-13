@@ -1,9 +1,8 @@
 import * as React from "react";
-import { Share, View } from "react-native";
+import { View } from "react-native";
 import { useRouter } from "expo-router";
 
 import { useDemo } from "@/lib/demo/demo-store";
-import { buildDemoAuditBundle, serializeAuditBundle } from "@/lib/activity/audit-export";
 import { GhostButton, IconButton, PrimaryButton } from "@/ui/buttons";
 import { AppIcon } from "@/ui/app-icon";
 import { GlassCard } from "@/ui/glass-card";
@@ -64,28 +63,6 @@ export default function DemoSettingsModal() {
             onPress={async () => {
               await haptic("tap");
               actions.triggerAlert("Demo alert", "A calm summary will appear in Inbox.", "info");
-            }}
-          />
-        </View>
-      </GlassCard>
-
-      <GlassCard>
-        <View style={{ gap: 12 }}>
-          <H2>Audit</H2>
-          <Muted>
-            Export a JSON snapshot of your activity, messages, proposals, and policy settings. No secrets or private keys are included.
-          </Muted>
-          <PrimaryButton
-            label="Export audit bundle"
-            onPress={async () => {
-              await haptic("tap");
-              const bundle = buildDemoAuditBundle(state);
-              const json = serializeAuditBundle(bundle);
-              try {
-                await Share.share({ message: json, title: "Starkclaw Audit Bundle" });
-              } catch {
-                // User cancelled the share sheet — no action needed.
-              }
             }}
           />
         </View>
