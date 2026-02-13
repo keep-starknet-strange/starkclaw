@@ -17,3 +17,6 @@ build/
 # Cairo / Scarb / Starknet Foundry
 contracts/**/target/
 contracts/**/.snfoundry_cache/
+
+# Parity audit output
+.parity-output/
