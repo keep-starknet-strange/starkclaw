@@ -2,6 +2,7 @@ import * as React from "react";
 import { ActivityIndicator, Pressable, ScrollView, TextInput } from "react-native";
 
 import { Text, View } from "@/components/Themed";
+import { appendActivity } from "@/lib/activity/activity";
 import { executeTransfer, prepareTransferFromText, type TransferAction } from "@/lib/agent/transfer";
 import { formatUnits } from "@/lib/starknet/balances";
 import { isContractDeployed } from "@/lib/starknet/rpc";
@@ -100,6 +101,16 @@ export default function AgentScreen() {
     try {
       const res = await executeTransfer({ wallet, action: pending });
       const status = res.executionStatus ?? "UNKNOWN";
+      const isReverted = status.toUpperCase() === "REVERTED";
+      await appendActivity({
+        networkId: wallet.networkId,
+        kind: "transfer",
+        summary: `Transfer ${pending.amount} ${pending.tokenSymbol} to ${shorten(pending.to)}`,
+        txHash: res.txHash,
+        status: isReverted ? "reverted" : "succeeded",
+        executionStatus: status,
+        revertReason: isReverted ? res.revertReason : null,
+      });
       if (status.toUpperCase() === "REVERTED") {
         setMessages((m) => [
           ...m,

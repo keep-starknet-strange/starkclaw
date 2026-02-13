@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView } from "react-native";
 import * as WebBrowser from "expo-web-browser";
 
 import { Text, View } from "@/components/Themed";
+import { appendActivity, updateActivityByTxHash } from "@/lib/activity/activity";
 import { formatUnits, getErc20Balance } from "@/lib/starknet/balances";
 import { createOwnerAccount } from "@/lib/starknet/account";
 import { AGENT_ACCOUNT_CLASS_HASH } from "@/lib/starknet/contracts";
@@ -136,10 +137,27 @@ export default function TabOneScreen() {
       setDeployTxHash(resp.transaction_hash);
       await saveDeployTxHash(resp.transaction_hash);
 
-      await account.waitForTransaction(resp.transaction_hash, {
-        retries: 60,
-        retryInterval: 3_000,
+      await appendActivity({
+        networkId: wallet.networkId,
+        kind: "deploy_account",
+        summary: "Deploy account",
+        txHash: resp.transaction_hash,
+        status: "pending",
       });
+
+      try {
+        await account.waitForTransaction(resp.transaction_hash, {
+          retries: 60,
+          retryInterval: 3_000,
+        });
+        await updateActivityByTxHash(resp.transaction_hash, { status: "succeeded" });
+      } catch (e) {
+        await updateActivityByTxHash(resp.transaction_hash, {
+          status: "unknown",
+          revertReason: e instanceof Error ? e.message : String(e),
+        });
+        throw e;
+      }
 
       await refresh(wallet);
     } catch (e) {

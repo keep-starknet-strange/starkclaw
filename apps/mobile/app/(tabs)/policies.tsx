@@ -2,6 +2,7 @@ import * as React from "react";
 import { ActivityIndicator, Pressable, ScrollView, TextInput } from "react-native";
 
 import { Text, View } from "@/components/Themed";
+import { appendActivity } from "@/lib/activity/activity";
 import { requireOwnerAuth } from "@/lib/security/owner-auth";
 import {
   createLocalSessionKey,
@@ -110,7 +111,14 @@ export default function PoliciesScreen() {
       const ownerPrivateKey = await loadOwnerPrivateKey();
       if (!ownerPrivateKey) throw new Error("Missing owner key");
 
-      await registerSessionKeyOnchain({ wallet, ownerPrivateKey, session });
+      const { txHash } = await registerSessionKeyOnchain({ wallet, ownerPrivateKey, session });
+      await appendActivity({
+        networkId: wallet.networkId,
+        kind: "register_session_key",
+        summary: `Register session key (${session.tokenSymbol})`,
+        txHash,
+        status: "succeeded",
+      });
       await refresh(wallet);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
@@ -128,7 +136,14 @@ export default function PoliciesScreen() {
         await requireOwnerAuth({ reason: "Revoke session key" });
         const ownerPrivateKey = await loadOwnerPrivateKey();
         if (!ownerPrivateKey) throw new Error("Missing owner key");
-        await revokeSessionKeyOnchain({ wallet, ownerPrivateKey, sessionPublicKey });
+        const { txHash } = await revokeSessionKeyOnchain({ wallet, ownerPrivateKey, sessionPublicKey });
+        await appendActivity({
+          networkId: wallet.networkId,
+          kind: "revoke_session_key",
+          summary: `Revoke session key (${shorten(sessionPublicKey)})`,
+          txHash,
+          status: "succeeded",
+        });
         await refresh(wallet);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Unknown error");
@@ -147,7 +162,14 @@ export default function PoliciesScreen() {
       await requireOwnerAuth({ reason: "Emergency revoke all session keys" });
       const ownerPrivateKey = await loadOwnerPrivateKey();
       if (!ownerPrivateKey) throw new Error("Missing owner key");
-      await emergencyRevokeAllOnchain({ wallet, ownerPrivateKey });
+      const { txHash } = await emergencyRevokeAllOnchain({ wallet, ownerPrivateKey });
+      await appendActivity({
+        networkId: wallet.networkId,
+        kind: "emergency_revoke_all",
+        summary: "Emergency revoke all session keys",
+        txHash,
+        status: "succeeded",
+      });
       await refresh(wallet);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
@@ -371,4 +393,3 @@ export default function PoliciesScreen() {
     </ScrollView>
   );
 }
-
