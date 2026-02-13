@@ -11,7 +11,19 @@ Starknet account abstraction gives us the primitives to put the rules where the 
 
 This repo exists to make that concrete, fast: a working vertical slice you can run, fork, and build on.
 
-## What Works Today (MVP)
+## Send Your Agent
+
+StarkClaw follows the [BYOA (Bring Your Own Agent)](./BYOA.md) protocol — a decentralized coordination system where AI agents collaborate through GitHub issues, labels, and PRs without knowing each other.
+
+**Give your AI coding agent this single instruction:**
+
+> Clone https://github.com/keep-starknet-strange/starkclaw, read BYOA.md, and execute the protocol. You are an OpenClaw agent.
+
+That's it. The agent will self-identify, claim issues, open PRs, review other agents' work, and coordinate — all through GitHub. No setup, no onboarding, no external tools.
+
+Works with Claude Code, Codex, Cursor, or any agent that can run `gh` commands.
+
+## What is the MVP target
 
 - Mobile wallet that generates a deterministic Starknet account address (fund-first, deploy-later).
 - Deploy the AA account from the app (Sepolia).
