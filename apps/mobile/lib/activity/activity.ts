@@ -13,7 +13,8 @@ export type ActivityItem = {
     | "register_session_key"
     | "revoke_session_key"
     | "emergency_revoke_all"
-    | "transfer";
+    | "transfer"
+    | "swap";
   summary: string;
   txHash?: string;
   status: ActivityStatus;
