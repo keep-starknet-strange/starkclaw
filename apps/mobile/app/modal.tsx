@@ -3,6 +3,7 @@ import { View } from "react-native";
 import { useRouter } from "expo-router";
 
 import { useDemo } from "@/lib/demo/demo-store";
+import { useWallet } from "@/lib/wallet/wallet-store";
 import { GhostButton, IconButton, PrimaryButton } from "@/ui/buttons";
 import { AppIcon } from "@/ui/app-icon";
 import { GlassCard } from "@/ui/glass-card";
@@ -15,6 +16,7 @@ export default function DemoSettingsModal() {
   const t = useAppTheme();
   const router = useRouter();
   const { state, actions } = useDemo();
+  const walletStore = useWallet();
 
   return (
     <AppScreen>
@@ -39,13 +41,40 @@ export default function DemoSettingsModal() {
             UI-only showcase. No RPC calls. No signing. Everything is mocked to demo the full Starkclaw flow.
           </Muted>
           <Row>
-            <Muted>Account</Muted>
+            <Muted>Account (demo)</Muted>
             <Mono selectable>
               {state.account.address.slice(0, 10)}…{state.account.address.slice(-6)}
             </Mono>
           </Row>
         </View>
       </GlassCard>
+
+      {walletStore.wallet ? (
+        <GlassCard>
+          <View style={{ gap: 12 }}>
+            <H2>Wallet</H2>
+            <Row>
+              <Muted>Network</Muted>
+              <Mono selectable>{walletStore.wallet.networkId}</Mono>
+            </Row>
+            <Row>
+              <Muted>Address</Muted>
+              <Mono selectable>
+                {walletStore.wallet.accountAddress.slice(0, 10)}…{walletStore.wallet.accountAddress.slice(-6)}
+              </Mono>
+            </Row>
+            <GhostButton
+              label="Reset wallet"
+              onPress={async () => {
+                await haptic("warn");
+                await walletStore.reset();
+                actions.reset();
+                router.replace("/(onboarding)/welcome");
+              }}
+            />
+          </View>
+        </GlassCard>
+      ) : null}
 
       <GlassCard>
         <View style={{ gap: 12 }}>

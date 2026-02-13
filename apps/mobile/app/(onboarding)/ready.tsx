@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import Animated, { FadeInDown } from "react-native-reanimated";
 
 import { useDemo } from "@/lib/demo/demo-store";
+import { useWallet } from "@/lib/wallet/wallet-store";
 import { GhostButton, PrimaryButton } from "@/ui/buttons";
 import { GlassCard } from "@/ui/glass-card";
 import { haptic } from "@/ui/haptics";
@@ -16,6 +17,7 @@ export default function OnboardingReadyScreen() {
   const t = useAppTheme();
   const router = useRouter();
   const { state, actions } = useDemo();
+  const walletStore = useWallet();
   const [creating, setCreating] = React.useState(false);
   const [step, setStep] = React.useState(0);
 
@@ -36,6 +38,10 @@ export default function OnboardingReadyScreen() {
 
     for (let i = 0; i < steps.length; i++) {
       setStep(i);
+      // Create the real wallet during "Generating policy keys" step.
+      if (i === 0 && walletStore.status !== "ready") {
+        await walletStore.create();
+      }
       await new Promise((r) => setTimeout(r, 420 + i * 110));
     }
 
@@ -48,7 +54,7 @@ export default function OnboardingReadyScreen() {
     });
 
     router.replace("/(tabs)");
-  }, [actions, displayName, router, state.onboarding.riskMode, state.policy.dailySpendCapUsd, state.policy.perTxCapUsd]);
+  }, [actions, displayName, router, state.onboarding.riskMode, state.policy.dailySpendCapUsd, state.policy.perTxCapUsd, walletStore]);
 
   return (
     <AppScreen>
@@ -87,9 +93,10 @@ export default function OnboardingReadyScreen() {
             </Row>
 
             <View style={{ gap: 6, marginTop: 2 }}>
-              <Muted>Agent account (mock)</Muted>
+              <Muted>{walletStore.wallet ? "Agent account" : "Agent account (mock)"}</Muted>
               <Mono selectable style={{ color: t.colors.muted }}>
-                {state.account.address.slice(0, 18)}…{state.account.address.slice(-6)}
+                {(walletStore.wallet?.accountAddress ?? state.account.address).slice(0, 18)}…
+                {(walletStore.wallet?.accountAddress ?? state.account.address).slice(-6)}
               </Mono>
             </View>
           </View>
