@@ -4,7 +4,7 @@ Last updated: 2026-02-13
 
 ## Current Milestone
 
-M05: Agent Runtime v0 (Chat + Tool Calls)
+M06: End-To-End MVP Demo (Constrained Transfer)
 
 ## Completed
 
@@ -16,16 +16,16 @@ M05: Agent Runtime v0 (Chat + Tool Calls)
 - M02 wallet core: deterministic account address + RPC reads (balances, chain id).
 - M03 deploy from mobile: funding UX + deploy account transaction flow.
 - M04 policy UI: create/register/revoke session keys with on-chain policy.
+- M05 agent v0: chat-like UI with deterministic transfer planning + explicit execute button.
 
 ## In Progress
 
-- M05: Agent runtime v0 (chat UI + safe tools)
+- M06: Constrained transfer demo + denial UX + activity log
 
 ## Next Up
 
-1. Add transfer proposal cards + execute flow using session key signature (M06).
-2. Add tx/activity log UI (M06).
-3. Hardening: better error messages + audit log export (M09 subset).
+1. Add tx/activity log UI (deploy + policy + transfer) with explorer links (M06).
+2. Add lightweight audit log export (JSON) (M09 subset).
 
 ## How To Verify
 
@@ -43,3 +43,7 @@ Manual MVP smoke (Sepolia):
 6. Go to `Policies`:
    - Create + register a session key for a token (start with ETH/STRK if USDC is unavailable).
    - Revoke it (or emergency revoke all) and confirm it shows invalid on-chain after refresh.
+7. Go to `Agent`:
+   - Ask: `send 1 ETH to 0x...` (or STRK/USDC matching your session key policy).
+   - Tap `Execute`.
+   - For denial test: set a small cap in `Policies`, then ask to send an amount over the cap and confirm it is denied on-chain.
