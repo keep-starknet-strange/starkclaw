@@ -28,13 +28,12 @@ Ship the MVP by iterating in small, verifiable vertical slices with frequent com
 - When adding deps, justify them and keep the dependency surface small.
 </do>
 <dont>
-- Don’t leave “manual steps” undocumented; if it’s needed, put it in `STATUS.md`.
-- Don’t merge interface changes without updating all dependents and tests.
+- Don't leave \"manual steps\" undocumented; if it's needed, put it in `STATUS.md`.
+- Don't merge interface changes without updating all dependents and tests.
 </dont>
 </patterns>
 
 <troubleshooting>
-- If you can’t verify something without secrets, create a “no-secrets” smoke test that still validates wiring.
+- If you can't verify something without secrets, create a \"no-secrets\" smoke test that still validates wiring.
 - If a step requires interactive CLI, wrap it in a script with non-interactive flags or document a fallback.
 </troubleshooting>
-

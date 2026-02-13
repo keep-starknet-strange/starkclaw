@@ -30,26 +30,26 @@ Markdown-only repo (no app/contracts yet).
 - `spec.draft.md`: preserved original notes
 - `.codex/skills/`, `.claude/skills/`: reusable skill packs (treat as vendored)
 </current>
-<target (M00+)>
+<target_m00_plus>
 - `apps/mobile/`: Expo app
 - `contracts/`: Cairo contracts + tests + deploy scripts
 - `packages/`: shared TS packages (agent runtime, starknet utils)
 - `scripts/`: deterministic check/dev commands used by CI
-</target>
+</target_m00_plus>
 </structure>
 
 <conventions>
 <do>
 - Work in vertical slices; each slice ends in a runnable artifact + checks + commit + push.
-- Update `STATUS.md` every milestone with “How To Verify”.
+- Update `STATUS.md` every milestone with \"How To Verify\".
 - Prefer deterministic scripts over ad-hoc commands (CI should call the same scripts).
 - Keep secrets out of git, logs, crash output, and LLM prompts.
 - Keep changes small and reversible; avoid large rewrites until MVP demo works.
 </do>
 <dont>
-- Don’t implement “TEE / attestation / ZK” (explicit non-goal for MVP).
-- Don’t add “unlimited approvals” defaults; approvals must be bounded or avoided.
-- Don’t let the model construct raw calldata unsafely; app constructs txs from validated params.
+- Don't implement \"TEE / attestation / ZK\" (explicit non-goal for MVP).
+- Don't add \"unlimited approvals\" defaults; approvals must be bounded or avoided.
+- Don't let the model construct raw calldata unsafely; app constructs txs from validated params.
 </dont>
 </conventions>
 
@@ -57,14 +57,14 @@ Markdown-only repo (no app/contracts yet).
 <current>
 No build/test commands exist yet (M00 will introduce them).
 </current>
-<planned (create in M00)>
+<planned_m00>
 | Task | Command | Notes |
 | ---- | ------- | ----- |
 | Check all | `./scripts/check` | lint + typecheck + unit + contracts |
 | App dev | `./scripts/app/dev` | starts Expo |
 | Contracts test | `./scripts/contracts/test` | scarb + snforge |
 | Contracts deploy | `./scripts/contracts/deploy sepolia` | requires env + funded deployer |
-</planned>
+</planned_m00>
 </commands>
 
 <workflows>
@@ -81,8 +81,8 @@ No build/test commands exist yet (M00 will introduce them).
 <boundaries>
 <forbidden>
 - Never commit secrets: `.env*`, `**/*keystore*`, `**/*mnemonic*`, `**/*private_key*`, `**/*.pem`, `**/*.key`.
-- Don’t edit `.codex/skills/**` or `.claude/skills/**` unless explicitly requested (treat as vendored skill packs).
-- Don’t run destructive git commands (`git reset --hard`, history rewrites) unless explicitly asked.
+- Don't edit `.codex/skills/**` or `.claude/skills/**` unless explicitly requested (treat as vendored skill packs).
+- Don't run destructive git commands (`git reset --hard`, history rewrites) unless explicitly asked.
 </forbidden>
 <gated>
 - Mainnet deployments, spending real funds, or using real private keys: require explicit user confirmation.
@@ -93,4 +93,3 @@ No build/test commands exist yet (M00 will introduce them).
 <skills>
 Project skills live in `skills/` (project-specific, small). General reusable skills are vendored in `.codex/skills/` and `.claude/skills/`.
 </skills>
-

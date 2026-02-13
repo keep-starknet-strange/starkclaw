@@ -20,8 +20,8 @@ For any work item:
 </delegation>
 
 <task_states>
-todo → inprogress → inreview → done
-                 ↘ blocked
+todo -> inprogress -> inreview -> done
+blocked can be entered from any state when waiting on a decision/dependency
 </task_states>
 
 <parallelization>
@@ -60,4 +60,3 @@ Format:
 2. [...]
 **Recommendation**: [...]
 </escalation>
-
