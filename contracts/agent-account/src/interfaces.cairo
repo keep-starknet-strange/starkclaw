@@ -7,7 +7,10 @@ pub struct SessionPolicy {
     pub valid_until: u64,
     pub spending_limit: u256,
     pub spending_token: ContractAddress,
-    pub allowed_contract: ContractAddress,
+    pub allowed_contract_0: ContractAddress,
+    pub allowed_contract_1: ContractAddress,
+    pub allowed_contract_2: ContractAddress,
+    pub allowed_contract_3: ContractAddress,
 }
 
 #[starknet::interface]
