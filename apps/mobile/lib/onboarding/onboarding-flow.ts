@@ -17,7 +17,7 @@ export type OnboardingStep =
   | "network"       // Choose sepolia (default) or mainnet (opt-in, warned)
   | "create_wallet" // Generate keypair + compute address
   | "fund"          // Deposit ETH/STRK to the computed address
-  | "deploy"        // Deploy AgentAccount on-chain
+  | "deploy"        // Deploy SessionAccount on-chain
   | "session_key"   // Create + register first session key
   | "first_action"  // Execute a constrained test action
   | "complete";     // Onboarding done

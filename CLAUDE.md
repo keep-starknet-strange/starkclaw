@@ -30,7 +30,7 @@ Assume the user does not see raw command output; summarize important results.
   - `lib/wallet/`, `lib/policy/`, `lib/agent/`, `lib/activity/`: Live execution libs (exists, not wired)
   - `app/(tabs)/`: Tab screens (index, trade, agent, policies, inbox)
   - `app/(onboarding)/`: Onboarding flow
-- `contracts/agent-account/`: Cairo account contract + tests (session keys + policy enforcement)
+- `contracts/`: Starknet account-contract tooling/docs (canonical lineage: `session-account` from `starknet-agentic`)
 - `scripts/`: Canonical commands used by CI (`check`, `app/dev`, `contracts/test`, etc.)
 - `.github/workflows/ci.yml`: CI entrypoint (runs `./scripts/check`)
 - `spec.md`: Expanded MVP spec
