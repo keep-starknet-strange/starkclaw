@@ -277,3 +277,5 @@ If you find a vulnerability, report it responsibly via [SECURITY.md](./SECURITY.
 ## License
 
 MIT. See `LICENSE`.
+
+Validation: dependency-review live run check (2026-02-14).
