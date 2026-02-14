@@ -1,7 +1,7 @@
 import * as Crypto from "expo-crypto";
 import { ec, hash } from "starknet";
 
-import { AGENT_ACCOUNT_CLASS_HASH } from "../starknet/contracts";
+import { SESSION_ACCOUNT_CLASS_HASH } from "../starknet/contracts";
 import { STARKNET_NETWORKS, type StarknetNetworkId } from "../starknet/networks";
 import { secureDelete, secureGet, secureSet } from "../storage/secure-store";
 
@@ -39,7 +39,7 @@ function computeAccountAddress(ownerPublicKey: string): string {
   const constructorCalldata = [ownerPublicKey, "0x0"];
   return hash.calculateContractAddressFromHash(
     salt,
-    AGENT_ACCOUNT_CLASS_HASH,
+    SESSION_ACCOUNT_CLASS_HASH,
     constructorCalldata,
     0
   );
