@@ -78,6 +78,20 @@ Do not commit or paste into issues:
 
 If you need secrets locally, keep them out of git and out of logs.
 
+### 3.1 Keep Root Docs Canonical
+
+Root-level markdown should stay minimal and long-lived:
+- `README.md`
+- `CONTRIBUTING.md`
+- `SECURITY.md`
+- `spec.md`
+- `STATUS.md` / `IMPLEMENTATION_PLAN.md` (project-level only)
+
+Do not add one-off status reports or audit dump files at repo root (for example, issue completion notes).
+Put those in:
+- the GitHub issue/PR thread, or
+- `docs/security/` when they are durable reference docs.
+
 ### 4. Security-Critical Areas
 
 Treat changes under `contracts/**` like a wallet implementation:
@@ -114,4 +128,3 @@ If you use an AI assistant:
 - [ ] Docs updated if behavior or commands changed
 
 Thanks for helping push agentic commerce toward bounded authority instead of blind trust.
-
