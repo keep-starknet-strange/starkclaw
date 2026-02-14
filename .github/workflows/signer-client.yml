@@ -47,7 +47,7 @@ jobs:
         working-directory: apps/mobile
 
       - name: Upload coverage
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           files: apps/mobile/coverage/lcov.info
           flags: signer-client
