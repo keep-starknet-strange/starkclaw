@@ -58,6 +58,9 @@ export type AuditBundle = {
     status?: string;
     executionStatus?: string | null;
     revertReason?: string | null;
+    // Observability correlation (#55)
+    mobileActionId?: string;
+    signerRequestId?: string | null;
   }>;
 
   alerts: Array<{
@@ -178,6 +181,8 @@ export async function buildLiveAuditBundle(
       status: a.status,
       executionStatus: a.executionStatus,
       revertReason: a.revertReason,
+      mobileActionId: a.mobileActionId,
+      signerRequestId: a.signerRequestId,
     })),
 
     alerts: [],

@@ -20,6 +20,9 @@ export type ActivityItem = {
   status: ActivityStatus;
   executionStatus?: string | null;
   revertReason?: string | null;
+  // Observability correlation (#55)
+  mobileActionId?: string;
+  signerRequestId?: string | null;
 };
 
 function nowSec(): number {
