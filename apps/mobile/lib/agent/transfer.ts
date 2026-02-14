@@ -2,6 +2,7 @@ import { EDataAvailabilityMode, validateAndParseAddress } from "starknet";
 
 import { getSessionPrivateKey, listSessionKeys, type StoredSessionKey } from "../policy/session-keys";
 import { KeyringProxySigner, KeyringProxySignerError } from "../signer/keyring-proxy-signer";
+import { ensureSignerCertificatePinning } from "../signer/pinning";
 import {
   type SignerMode,
   SignerRuntimeConfigError,
@@ -210,7 +211,7 @@ function mapRemoteSignerError(err: unknown): Error {
   if (/Keyring proxy error \((403|422)\)/i.test(msg)) {
     return new Error("Signer policy denied this transfer. Review session policy and limits.");
   }
-  if (/INSECURE_TRANSPORT|MTLS_REQUIRED/i.test(msg)) {
+  if (/INSECURE_TRANSPORT|MTLS_REQUIRED|PINNING_/i.test(msg)) {
     return new Error(msg);
   }
   return err instanceof Error ? err : new Error(msg);
@@ -246,6 +247,12 @@ export async function executeTransfer(params: {
   if (signerMode === "remote") {
     try {
       const remoteConfig = await loadRemoteSignerRuntimeConfig();
+      await ensureSignerCertificatePinning({
+        proxyUrl: remoteConfig.proxyUrl,
+        pinnedPublicKeyHashes: remoteConfig.pinnedPublicKeyHashes,
+        pinningIncludeSubdomains: remoteConfig.pinningIncludeSubdomains,
+        pinningExpirationDate: remoteConfig.pinningExpirationDate,
+      });
       remoteSigner = new KeyringProxySigner({
         proxyUrl: remoteConfig.proxyUrl,
         accountAddress: params.wallet.accountAddress,

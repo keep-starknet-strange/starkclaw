@@ -12,6 +12,7 @@ This folder now has two layers:
 - `client.ts`: generic typed HTTP client + error mapping (groundwork).
 - `keyring-proxy-signer.ts`: Starknet `SignerInterface` implementation that signs through SISNA keyring proxy with HMAC headers.
 - `runtime-config.ts`: remote/local mode config loader with production transport guards.
+- `pinning.ts`: SSL public-key pinning initializer (fail-closed in production remote mode).
 
 Execution wiring uses `keyring-proxy-signer.ts` in remote mode.
 
@@ -63,8 +64,16 @@ Remote signer mode now enforces stricter production constraints in `runtime-conf
 - Loopback signer endpoints (`localhost`, `127.0.0.1`, `::1`) are rejected in production.
 - `EXPO_PUBLIC_SISNA_MTLS_REQUIRED` must be truthy in production.
 - `EXPO_PUBLIC_SISNA_REQUESTER` must be explicitly set in production (no default fallback).
+- `EXPO_PUBLIC_SISNA_PINNED_PUBKEYS` must include at least two base64 sha256(SPKI) hashes in production.
+- Optional: `EXPO_PUBLIC_SISNA_PIN_INCLUDE_SUBDOMAINS=true` and `EXPO_PUBLIC_SISNA_PIN_EXPIRATION_DATE=yyyy-MM-dd`.
 
 This prevents ambiguous deployment posture where app traffic appears "production" but is still using local/dev transport assumptions.
+
+## Certificate Pinning Notes
+
+- Pinning runtime uses `react-native-ssl-public-key-pinning` and is initialized before remote signing.
+- If pinning cannot initialize in remote mode, transfer execution fails closed before signing.
+- Expo Go does not provide the native module; use a development/production build for remote signer testing.
 
 ## Legacy Groundwork Usage
 

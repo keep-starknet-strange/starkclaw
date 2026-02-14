@@ -42,6 +42,7 @@
     "react-native-reanimated": "~4.1.1",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
+    "react-native-ssl-public-key-pinning": "^1.2.6",
     "react-native-web": "~0.21.0",
     "react-native-worklets": "0.5.1",
     "starknet": "^9.2.1"

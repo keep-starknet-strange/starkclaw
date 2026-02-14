@@ -30,6 +30,9 @@ function resetEnv() {
   delete process.env.EXPO_PUBLIC_SIGNER_MODE;
   delete process.env.EXPO_PUBLIC_SISNA_PROXY_URL;
   delete process.env.EXPO_PUBLIC_SISNA_MTLS_REQUIRED;
+  delete process.env.EXPO_PUBLIC_SISNA_PINNED_PUBKEYS;
+  delete process.env.EXPO_PUBLIC_SISNA_PIN_INCLUDE_SUBDOMAINS;
+  delete process.env.EXPO_PUBLIC_SISNA_PIN_EXPIRATION_DATE;
   delete process.env.EXPO_PUBLIC_SISNA_REQUEST_TIMEOUT_MS;
   delete process.env.EXPO_PUBLIC_SISNA_REQUESTER;
 }
@@ -130,6 +133,8 @@ describe("runtime-config", () => {
     process.env.NODE_ENV = "production";
     process.env.EXPO_PUBLIC_SISNA_PROXY_URL = "https://signer.internal:8545";
     process.env.EXPO_PUBLIC_SISNA_MTLS_REQUIRED = "yes";
+    process.env.EXPO_PUBLIC_SISNA_PINNED_PUBKEYS =
+      "CLOmM1/OXvSPjw5UOYbAf9GKOxImEp9hhku9W90fHMk=,hxqRlPTu1bMS/0DITB1SSu0vd4u/8l8TjPgfaAp63Gc=";
     process.env.EXPO_PUBLIC_SISNA_REQUESTER = "starkclaw-prod";
     secureGetMock.mockResolvedValue(
       JSON.stringify({
@@ -140,7 +145,66 @@ describe("runtime-config", () => {
 
     await expect(loadRemoteSignerRuntimeConfig()).resolves.toMatchObject({
       mtlsRequired: true,
+      pinnedPublicKeyHashes: [
+        "CLOmM1/OXvSPjw5UOYbAf9GKOxImEp9hhku9W90fHMk=",
+        "hxqRlPTu1bMS/0DITB1SSu0vd4u/8l8TjPgfaAp63Gc=",
+      ],
     });
+  });
+
+  it("requires pinned public key hashes in production mode", async () => {
+    process.env.NODE_ENV = "production";
+    process.env.EXPO_PUBLIC_SISNA_PROXY_URL = "https://signer.internal:8545";
+    process.env.EXPO_PUBLIC_SISNA_MTLS_REQUIRED = "true";
+    process.env.EXPO_PUBLIC_SISNA_REQUESTER = "starkclaw-prod";
+    secureGetMock.mockResolvedValue(
+      JSON.stringify({
+        clientId: "mobile-client",
+        hmacSecret: "super-secret",
+      })
+    );
+
+    await expect(loadRemoteSignerRuntimeConfig()).rejects.toMatchObject({
+      code: "PINNING_REQUIRED",
+    } satisfies Partial<SignerRuntimeConfigError>);
+  });
+
+  it("requires at least two pinned hashes in production mode", async () => {
+    process.env.NODE_ENV = "production";
+    process.env.EXPO_PUBLIC_SISNA_PROXY_URL = "https://signer.internal:8545";
+    process.env.EXPO_PUBLIC_SISNA_MTLS_REQUIRED = "true";
+    process.env.EXPO_PUBLIC_SISNA_PINNED_PUBKEYS =
+      "CLOmM1/OXvSPjw5UOYbAf9GKOxImEp9hhku9W90fHMk=";
+    process.env.EXPO_PUBLIC_SISNA_REQUESTER = "starkclaw-prod";
+    secureGetMock.mockResolvedValue(
+      JSON.stringify({
+        clientId: "mobile-client",
+        hmacSecret: "super-secret",
+      })
+    );
+
+    await expect(loadRemoteSignerRuntimeConfig()).rejects.toMatchObject({
+      code: "INVALID_PINNING_CONFIG",
+    } satisfies Partial<SignerRuntimeConfigError>);
+  });
+
+  it("rejects malformed pinned key hashes", async () => {
+    process.env.NODE_ENV = "production";
+    process.env.EXPO_PUBLIC_SISNA_PROXY_URL = "https://signer.internal:8545";
+    process.env.EXPO_PUBLIC_SISNA_MTLS_REQUIRED = "true";
+    process.env.EXPO_PUBLIC_SISNA_PINNED_PUBKEYS =
+      "not-base64,CLOmM1/OXvSPjw5UOYbAf9GKOxImEp9hhku9W90fHMk=";
+    process.env.EXPO_PUBLIC_SISNA_REQUESTER = "starkclaw-prod";
+    secureGetMock.mockResolvedValue(
+      JSON.stringify({
+        clientId: "mobile-client",
+        hmacSecret: "super-secret",
+      })
+    );
+
+    await expect(loadRemoteSignerRuntimeConfig()).rejects.toMatchObject({
+      code: "INVALID_PINNING_CONFIG",
+    } satisfies Partial<SignerRuntimeConfigError>);
   });
 
   it("rejects production config when proxy endpoint is loopback", async () => {
@@ -203,6 +267,10 @@ describe("runtime-config", () => {
   it("loads validated remote config with secure-store credentials", async () => {
     process.env.EXPO_PUBLIC_SISNA_PROXY_URL = "https://signer.internal:8545";
     process.env.EXPO_PUBLIC_SISNA_MTLS_REQUIRED = "true";
+    process.env.EXPO_PUBLIC_SISNA_PINNED_PUBKEYS =
+      "CLOmM1/OXvSPjw5UOYbAf9GKOxImEp9hhku9W90fHMk=,hxqRlPTu1bMS/0DITB1SSu0vd4u/8l8TjPgfaAp63Gc=";
+    process.env.EXPO_PUBLIC_SISNA_PIN_INCLUDE_SUBDOMAINS = "true";
+    process.env.EXPO_PUBLIC_SISNA_PIN_EXPIRATION_DATE = "2030-01-31";
     process.env.EXPO_PUBLIC_SISNA_REQUEST_TIMEOUT_MS = "9000";
     process.env.EXPO_PUBLIC_SISNA_REQUESTER = "starkclaw-tests";
     secureGetMock.mockResolvedValue(
@@ -221,6 +289,12 @@ describe("runtime-config", () => {
       requestTimeoutMs: 9000,
       requester: "starkclaw-tests",
       mtlsRequired: true,
+      pinnedPublicKeyHashes: [
+        "CLOmM1/OXvSPjw5UOYbAf9GKOxImEp9hhku9W90fHMk=",
+        "hxqRlPTu1bMS/0DITB1SSu0vd4u/8l8TjPgfaAp63Gc=",
+      ],
+      pinningIncludeSubdomains: true,
+      pinningExpirationDate: "2030-01-31",
     });
   });
 

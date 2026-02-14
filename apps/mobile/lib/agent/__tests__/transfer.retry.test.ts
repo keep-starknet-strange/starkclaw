@@ -4,6 +4,7 @@ const hoisted = vi.hoisted(() => ({
   mockCreateSessionAccount: vi.fn(),
   mockGetSessionPrivateKey: vi.fn(),
   mockListSessionKeys: vi.fn(),
+  mockEnsureSignerCertificatePinning: vi.fn(async () => {}),
 }));
 
 vi.mock("@/lib/starknet/account", () => ({
@@ -31,10 +32,17 @@ vi.mock("@/lib/signer/runtime-config", () => ({
     requestTimeoutMs: 5_000,
     requester: "tests",
     mtlsRequired: false,
+    pinnedPublicKeyHashes: [],
+    pinningIncludeSubdomains: false,
+    pinningExpirationDate: undefined,
   }),
   SignerRuntimeConfigError: class SignerRuntimeConfigError extends Error {
     code?: string;
   },
+}));
+
+vi.mock("@/lib/signer/pinning", () => ({
+  ensureSignerCertificatePinning: hoisted.mockEnsureSignerCertificatePinning,
 }));
 
 vi.mock("@/lib/policy/session-keys", () => ({
@@ -126,6 +134,7 @@ describe("executeTransfer L2 gas retry", () => {
     expect(result.executionStatus).toBe("SUCCEEDED");
     expect(result.revertReason).toBeNull();
     expect(result.signerRequestId).toBe("req-123");
+    expect(hoisted.mockEnsureSignerCertificatePinning).toHaveBeenCalledTimes(1);
 
     expect(execute).toHaveBeenCalledTimes(2);
     expect(estimateInvokeFee).toHaveBeenCalledTimes(1);
@@ -198,6 +207,31 @@ describe("executeTransfer L2 gas retry", () => {
         tool: "execute_transfer",
       })
     ).rejects.toThrow(/not allowed for the selected session policy/i);
+
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when certificate pinning initialization fails in remote mode", async () => {
+    const execute = vi.fn();
+    hoisted.mockCreateSessionAccount.mockReturnValue({
+      execute,
+      waitForTransaction: vi.fn(),
+      getTransactionReceipt: vi.fn(),
+      estimateInvokeFee: vi.fn(),
+    });
+    hoisted.mockEnsureSignerCertificatePinning.mockRejectedValueOnce(
+      new Error("PINNING_INIT_FAILED: bad pin set")
+    );
+
+    await expect(
+      executeTransfer({
+        wallet,
+        action,
+        mobileActionId: "mobile_action_test",
+        requester: "tests",
+        tool: "execute_transfer",
+      })
+    ).rejects.toThrow(/PINNING_INIT_FAILED/i);
 
     expect(execute).not.toHaveBeenCalled();
   });
