@@ -1,10 +1,6 @@
 /**
- * SISNA Signer Client Unit Tests
- *
- * TDD-first: These tests define the contract for the signer client.
- * All tests should FAIL until implementation is complete.
- *
- * Scope: #54 groundwork only (no execution wiring)
+ * SISNA signer client unit tests.
+ * Covers core success and error-mapping behavior.
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';

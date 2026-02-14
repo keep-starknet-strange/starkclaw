@@ -1,8 +1,5 @@
 /**
- * SISNA Signer Client Type Definitions
- *
- * Issue: #54
- * Scope: Groundwork only (no execution wiring)
+ * SISNA signer client type definitions shared by runtime and tests.
  */
 
 /**
