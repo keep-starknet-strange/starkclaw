@@ -72,7 +72,7 @@ export function ToolCallCard(props: ToolCallCardProps) {
     props.status === "error" ? "danger" : "neutral";
     
   const operationColor = 
-    props.operationType === "write" ? t.colors.warning : t.colors.info;
+    props.operationType === "write" ? t.colors.warn : t.colors.accent;
 
   return (
     <Animated.View entering={FadeInDown.duration(400)}>

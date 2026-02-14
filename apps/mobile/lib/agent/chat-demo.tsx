@@ -57,7 +57,7 @@ export function ChatDemo() {
 
         {chatState.messages.length === 0 && (
           <GlassCard padding={16}>
-            <Body style={{ color: t.colors.textMuted, textAlign: "center" }}>
+            <Body style={{ color: t.colors.muted, textAlign: "center" }}>
               Try: "Show my balance" or "Send 50 USDC"
             </Body>
           </GlassCard>

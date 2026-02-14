@@ -75,7 +75,7 @@ export const StreamingMessage = React.forwardRef<
               width: 6,
               height: 6,
               borderRadius: 3,
-              backgroundColor: isComplete ? t.colors.success : t.colors.primary,
+              backgroundColor: isComplete ? t.colors.good : t.colors.accent,
               marginTop: 6,
             }}
           />
@@ -83,7 +83,7 @@ export const StreamingMessage = React.forwardRef<
             <Body style={{ color: t.colors.text }}>
               {text}
               {!isComplete && (
-                <Body style={{ color: t.colors.textMuted }}> ▊</Body>
+                <Body style={{ color: t.colors.muted }}> ▊</Body>
               )}
             </Body>
           </View>
