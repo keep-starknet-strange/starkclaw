@@ -1,0 +1,61 @@
+name: Spec Conformance
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/mobile/lib/signer/**'
+      - 'contracts/**'
+      - 'spec/interop-version.json'
+      - 'docs/**'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/mobile/lib/signer/**'
+      - 'contracts/**'
+      - 'spec/interop-version.json'
+      - 'docs/**'
+  repository_dispatch:
+    types: [spec-conformance-request]
+  schedule:
+    - cron: '35 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current repo
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Validate local interop manifest
+        run: |
+          set -euo pipefail
+          jq -e '.spec_version and .session_signature_envelope and .signer_api_path' spec/interop-version.json >/dev/null
+          jq -r '.spec_version' spec/interop-version.json
+
+      - name: Clone counterpart repos
+        run: |
+          set -euo pipefail
+          git clone --depth 1 https://github.com/keep-starknet-strange/starknet-agentic.git /tmp/starknet-agentic
+          git clone --depth 1 https://github.com/omarespejel/SISNA.git /tmp/SISNA
+
+      - name: Compare spec version across repos
+        run: |
+          set -euo pipefail
+          LOCAL_VERSION=$(jq -r '.spec_version' spec/interop-version.json)
+          AGENTIC_VERSION=$(jq -r '.spec_version' /tmp/starknet-agentic/spec/interop-version.json)
+          SISNA_VERSION=$(jq -r '.spec_version' /tmp/SISNA/spec/interop-version.json)
+          echo "starkclaw=$LOCAL_VERSION agentic=$AGENTIC_VERSION sisna=$SISNA_VERSION"
+          test "$LOCAL_VERSION" = "$AGENTIC_VERSION"
+          test "$LOCAL_VERSION" = "$SISNA_VERSION"
+
+      - name: Validate envelope anchors
+        run: |
+          set -euo pipefail
+          rg -n "expected \\[pubkey, r, s, valid_until\\]" apps/mobile/lib/signer/keyring-proxy-signer.ts
+          rg -n "len=4\): \[session_pubkey, r, s, valid_until\]" /tmp/starknet-agentic/contracts/session-account/src/account.cairo
+          rg -n "X-Keyring-Signature|validUntil|/v1/sign/session-transaction" /tmp/SISNA/docs/api-spec.yaml
