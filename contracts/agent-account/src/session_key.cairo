@@ -102,6 +102,10 @@ pub mod SessionKeyComponent {
 
         /// Validates that a session key is active, within its time window,
         /// and that the target contract is allowed by the key's policy.
+        ///
+        /// Allowlist semantics (bounded set of up to 4 targets):
+        ///   - All four slots zero → wildcard (any contract allowed).
+        ///   - Otherwise, target must match at least one non-zero slot.
         /// Returns false if any check fails.
         fn validate_call(
             self: @ComponentState<TContractState>,
@@ -114,14 +118,27 @@ pub mod SessionKeyComponent {
             }
 
             let policy = self.session_keys.entry(key).read();
-
-            // allowed_contract == zero means any contract is allowed
             let zero_addr: ContractAddress = 0.try_into().unwrap();
-            if policy.allowed_contract != zero_addr && policy.allowed_contract != target {
-                return false;
+
+            // If all slots are zero, any contract is allowed (wildcard)
+            if policy.allowed_contract_0 == zero_addr
+                && policy.allowed_contract_1 == zero_addr
+                && policy.allowed_contract_2 == zero_addr
+                && policy.allowed_contract_3 == zero_addr {
+                return true;
             }
 
-            true
+            // Otherwise, target must match at least one non-zero slot.
+            // Zero slots are skipped to prevent treating unfilled entries
+            // as "allow calls to address 0x0".
+            if (policy.allowed_contract_0 != zero_addr && policy.allowed_contract_0 == target)
+                || (policy.allowed_contract_1 != zero_addr && policy.allowed_contract_1 == target)
+                || (policy.allowed_contract_2 != zero_addr && policy.allowed_contract_2 == target)
+                || (policy.allowed_contract_3 != zero_addr && policy.allowed_contract_3 == target) {
+                return true;
+            }
+
+            false
         }
 
         /// Debits the session key's spending allowance.
