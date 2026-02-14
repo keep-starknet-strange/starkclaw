@@ -19,7 +19,7 @@
     "@expo-google-fonts/instrument-sans": "^0.4.2",
     "@expo-google-fonts/playwrite-nz-basic": "^0.4.0",
     "@expo/vector-icons": "^15.0.3",
-    "@noble/hashes": "^1.8.0",
+    "@noble/hashes": "^2.0.1",
     "@react-navigation/native": "^7.1.8",
     "expo": "~54.0.33",
     "expo-blur": "~15.0.8",
