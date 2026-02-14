@@ -62,7 +62,8 @@ Assume the user does not see raw command output; summarize important results.
 | Check all | `./scripts/check` | runs mobile lint/typecheck + contracts tests |
 | App dev | `./scripts/app/dev` | `expo start` |
 | Contracts test | `./scripts/contracts/test` | scarb + snforge |
-| Declare AgentAccount (one-time, Sepolia) | `STARKNET_DEPLOYER_ADDRESS=... STARKNET_DEPLOYER_PRIVATE_KEY=... ./scripts/contracts/declare-agent-account` | required before any in-app account deploy |
+| Declare session-account lineage (one-time, Sepolia) | `STARKNET_DEPLOYER_ADDRESS=... STARKNET_DEPLOYER_PRIVATE_KEY=... ./scripts/contracts/declare-session-account` | canonical production path |
+| Declare legacy AgentAccount (migration/debug only) | `ALLOW_LEGACY_AGENT_ACCOUNT=1 STARKNET_DEPLOYER_ADDRESS=... STARKNET_DEPLOYER_PRIVATE_KEY=... ./scripts/contracts/declare-agent-account` | non-production fallback |
 </current>
 </commands>
 

@@ -13,6 +13,13 @@ function requiredEnv(name) {
   return v;
 }
 
+if (process.env.ALLOW_LEGACY_AGENT_ACCOUNT !== "1") {
+  throw new Error(
+    "Legacy AgentAccount declare path is disabled by default. " +
+      "Use declare-session-account, or set ALLOW_LEGACY_AGENT_ACCOUNT=1 for migration/debug only."
+  );
+}
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, "../../..");
@@ -75,4 +82,3 @@ main().catch((err) => {
   console.error(err instanceof Error ? err.message : String(err));
   process.exit(1);
 });
-

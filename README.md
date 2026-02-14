@@ -71,7 +71,7 @@ The point is "the AI *couldn't* misbehave outside the policy, even if it tried."
 
 ## How It Works (No Hand-Waving)
 
-Starkclaw uses a custom Starknet account contract (`contracts/agent-account`) with a split key model:
+Starkclaw uses Starknet session-account lineage (canonical source: `keep-starknet-strange/starknet-agentic/contracts/session-account`) with a split key model:
 
 - **Owner key (master)**:
   - Deploys the account.
@@ -145,10 +145,10 @@ Notes:
 - `EXPECTED_SESSION_ACCOUNT_CLASS_HASH` is optional but pinned by default; declare fails on mismatch
 - Existing wallets without persisted class-hash metadata remain on legacy hash addressing (no silent remap)
 
-Legacy fallback (migration/debug only):
+Legacy fallback (migration/debug only, explicitly gated):
 
 ```bash
-./scripts/contracts/declare-agent-account
+ALLOW_LEGACY_AGENT_ACCOUNT=1 ./scripts/contracts/declare-agent-account
 ```
 
 ### In The App (Planned)
@@ -167,7 +167,7 @@ See `STATUS.md` for current progress.
 ## Repo Layout
 
 - `apps/mobile/`: Expo app (Expo Router)
-- `contracts/agent-account/`: legacy Cairo account package retained during migration
+- `contracts/`: Starknet account-contract tooling/docs
 - `scripts/`: deterministic commands (CI calls these)
 - `spec.md`: product spec
 - `IMPLEMENTATION_PLAN.md`: milestone plan
@@ -216,7 +216,7 @@ If you find a vulnerability, please report it responsibly. See [SECURITY.md](./S
 
 ## Acknowledgements
 
-- The AA safety-rails baseline is derived from `keep-starknet-strange/starknet-agentic` (vendored into `contracts/agent-account`).
+- Canonical AA safety-rails lineage is `keep-starknet-strange/starknet-agentic/contracts/session-account`.
 - Starknet.js for transaction building and signing.
 
 ## License

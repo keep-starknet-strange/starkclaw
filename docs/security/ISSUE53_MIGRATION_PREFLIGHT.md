@@ -9,6 +9,13 @@ Execute the contract lineage migration with minimum security regression risk:
 - move mobile contract calls to `session-account` API shape,
 - preserve remote signer (`SISNA`) execution path behavior.
 
+## Canonical Path + Legacy Fallback Policy
+- Canonical production declare path: `./scripts/contracts/declare-session-account`
+- Legacy fallback path: `./scripts/contracts/declare-agent-account`
+  - explicitly gated and disabled by default
+  - requires `ALLOW_LEGACY_AGENT_ACCOUNT=1`
+  - intended only for migration/debug compatibility
+
 ## Current Drift Snapshot
 
 ### Legacy contract lineage still active

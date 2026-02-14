@@ -6,17 +6,16 @@ If the app UI and the agent logic are compromised, the contracts are still the f
 
 ## Packages
 
-- `agent-account/`: legacy local contract package retained during migration
-  - canonical production lineage is `session-account` from `starknet-agentic`
+- Canonical production lineage: `session-account` from `starknet-agentic`
 
 ## What The Account Enforces (MVP)
 
-The `AgentAccount` contract supports two signer modes:
+The canonical session-account path supports two signer modes:
 
 - **Owner signature**: unrestricted account execution
 - **Session key signature**: restricted execution (policy enforced in `__execute__`)
 
-Session key policy fields (see `agent-account/src/interfaces.cairo`):
+Session key policy fields (see upstream session-account interfaces):
 
 - `valid_after`, `valid_until`
 - `spending_token`, `spending_limit` (24h rolling window)
@@ -33,7 +32,7 @@ From repo root:
 ./scripts/contracts/test
 ```
 
-Or inside the package:
+Legacy package tests (migration/debug only):
 
 ```bash
 cd agent-account
@@ -67,10 +66,10 @@ EXPECTED_SESSION_ACCOUNT_CLASS_HASH=0x... \
 ./scripts/contracts/declare-session-account
 ```
 
-Legacy fallback (migration/debug only):
+Legacy fallback (migration/debug only, explicitly gated):
 
 ```bash
-./scripts/contracts/declare-agent-account
+ALLOW_LEGACY_AGENT_ACCOUNT=1 ./scripts/contracts/declare-agent-account
 ```
 
 If you change canonical session-account code:

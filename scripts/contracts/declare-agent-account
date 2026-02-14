@@ -6,5 +6,13 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # Legacy path (AgentAccount). Keep only for migration/debug fallback.
 # Canonical production path is: ./scripts/contracts/declare-session-account
 
+if [[ "${ALLOW_LEGACY_AGENT_ACCOUNT:-}" != "1" ]]; then
+  echo "Blocked: legacy AgentAccount declare path is disabled by default."
+  echo "Use canonical path: ./scripts/contracts/declare-session-account"
+  echo "To override for migration/debug only, re-run with:"
+  echo "  ALLOW_LEGACY_AGENT_ACCOUNT=1 ./scripts/contracts/declare-agent-account"
+  exit 1
+fi
+
 # Uses starknet.js from apps/mobile to avoid duplicating dependencies at repo root.
 node "$ROOT_DIR/apps/mobile/scripts/declare-agent-account.mjs"
