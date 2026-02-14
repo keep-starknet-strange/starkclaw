@@ -44,6 +44,27 @@ function pickKeyForToken(keys: StoredSessionKey[], tokenSymbol: StarknetTokenSym
   return k;
 }
 
+function normalizeAddress(value: string): string {
+  return validateAndParseAddress(value).toLowerCase();
+}
+
+function enforceSessionTransferTargetPolicy(
+  action: TransferAction,
+  session: StoredSessionKey
+): void {
+  if (session.revokedAt) {
+    throw new Error("Session key revoked. Create a new one in Policies.");
+  }
+  if (session.tokenSymbol !== action.tokenSymbol) {
+    throw new Error("Transfer token symbol does not match the selected session policy.");
+  }
+  const policyTokenAddress = normalizeAddress(session.tokenAddress);
+  const transferTokenAddress = normalizeAddress(action.tokenAddress);
+  if (policyTokenAddress !== transferTokenAddress) {
+    throw new Error("Transfer token is not allowed for the selected session policy.");
+  }
+}
+
 export async function prepareTransferFromText(params: {
   wallet: WalletSnapshot;
   text: string;
@@ -215,6 +236,13 @@ export async function executeTransfer(params: {
   let sessionAccount: ReturnType<typeof createSessionAccount>;
   let remoteSigner: KeyringProxySigner | null = null;
 
+  const sessions = await listSessionKeys();
+  const session = sessions.find((k) => k.key === params.action.sessionPublicKey);
+  if (!session) {
+    throw new Error("Session key not found in local policy store.");
+  }
+  enforceSessionTransferTargetPolicy(params.action, session);
+
   if (signerMode === "remote") {
     try {
       const remoteConfig = await loadRemoteSignerRuntimeConfig();
@@ -229,6 +257,7 @@ export async function executeTransfer(params: {
         requester: params.requester ?? remoteConfig.requester,
         tool: params.tool ?? "execute_transfer",
         mobileActionId,
+        allowedTransferTokenAddress: params.action.tokenAddress,
       });
 
       sessionAccount = createSessionAccount({

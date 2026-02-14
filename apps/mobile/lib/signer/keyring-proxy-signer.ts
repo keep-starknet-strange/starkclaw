@@ -25,6 +25,7 @@ export type KeyringProxySignerConfig = {
   tool: string;
   mobileActionId: string;
   reason?: string;
+  allowedTransferTokenAddress?: string;
 };
 
 type KeyringSignResponse = {
@@ -74,6 +75,32 @@ function feltEqualsHex(a: string, b: string): boolean {
 
 function isHexFelt(value: unknown): value is string {
   return typeof value === "string" && /^0x[0-9a-fA-F]+$/.test(value);
+}
+
+function assertTransferPolicyBoundCalls(
+  calls: Call[],
+  allowedTransferTokenAddress?: string
+): void {
+  if (!allowedTransferTokenAddress) return;
+  if (calls.length !== 1) {
+    throw new KeyringProxySignerError(
+      "POLICY_DENIED",
+      "Signer policy denied this transfer: expected a single transfer call."
+    );
+  }
+  const call = calls[0];
+  if (call.entrypoint !== "transfer") {
+    throw new KeyringProxySignerError(
+      "POLICY_DENIED",
+      "Signer policy denied this transfer: only transfer entrypoint is allowed."
+    );
+  }
+  if (!feltEqualsHex(call.contractAddress, allowedTransferTokenAddress)) {
+    throw new KeyringProxySignerError(
+      "POLICY_DENIED",
+      "Signer policy denied this transfer: target token does not match session policy."
+    );
+  }
 }
 
 function sha256Hex(input: string): string {
@@ -193,6 +220,7 @@ export class KeyringProxySigner extends SignerInterface {
     if (this.config.validUntil <= nowSec) {
       throw new Error("Remote signer validUntil is already expired");
     }
+    assertTransferPolicyBoundCalls(transactions, this.config.allowedTransferTokenAddress);
 
     const requestPayload = {
       accountAddress: this.config.accountAddress,

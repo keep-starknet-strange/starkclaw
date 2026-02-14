@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const hoisted = vi.hoisted(() => ({
   mockCreateSessionAccount: vi.fn(),
+  mockGetSessionPrivateKey: vi.fn(),
+  mockListSessionKeys: vi.fn(),
 }));
 
 vi.mock("@/lib/starknet/account", () => ({
@@ -36,8 +38,8 @@ vi.mock("@/lib/signer/runtime-config", () => ({
 }));
 
 vi.mock("@/lib/policy/session-keys", () => ({
-  getSessionPrivateKey: vi.fn(),
-  listSessionKeys: vi.fn(),
+  getSessionPrivateKey: hoisted.mockGetSessionPrivateKey,
+  listSessionKeys: hoisted.mockListSessionKeys,
 }));
 
 import { executeTransfer, type TransferAction } from "@/lib/agent/transfer";
@@ -71,6 +73,18 @@ const action: TransferAction = {
 describe("executeTransfer L2 gas retry", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    hoisted.mockListSessionKeys.mockResolvedValue([
+      {
+        key: action.sessionPublicKey,
+        tokenSymbol: action.tokenSymbol,
+        tokenAddress: action.tokenAddress,
+        spendingLimit: action.policy.spendingLimitBaseUnits,
+        validAfter: Math.floor(Date.now() / 1000) - 10,
+        validUntil: action.policy.validUntil,
+        allowedContract: "0x0",
+        createdAt: Math.floor(Date.now() / 1000) - 10,
+      },
+    ]);
   });
 
   it("retries once with bumped resource bounds on Insufficient max L2Gas revert", async () => {
@@ -152,5 +166,39 @@ describe("executeTransfer L2 gas retry", () => {
 
     expect(execute).toHaveBeenCalledTimes(1);
     expect(estimateInvokeFee).not.toHaveBeenCalled();
+  });
+
+  it("rejects when action token target does not match stored session policy token", async () => {
+    const execute = vi.fn();
+    hoisted.mockCreateSessionAccount.mockReturnValue({
+      execute,
+      waitForTransaction: vi.fn(),
+      getTransactionReceipt: vi.fn(),
+      estimateInvokeFee: vi.fn(),
+    });
+    hoisted.mockListSessionKeys.mockResolvedValue([
+      {
+        key: action.sessionPublicKey,
+        tokenSymbol: action.tokenSymbol,
+        tokenAddress: "0x9999",
+        spendingLimit: action.policy.spendingLimitBaseUnits,
+        validAfter: Math.floor(Date.now() / 1000) - 10,
+        validUntil: action.policy.validUntil,
+        allowedContract: "0x0",
+        createdAt: Math.floor(Date.now() / 1000) - 10,
+      },
+    ]);
+
+    await expect(
+      executeTransfer({
+        wallet,
+        action,
+        mobileActionId: "mobile_action_test",
+        requester: "tests",
+        tool: "execute_transfer",
+      })
+    ).rejects.toThrow(/not allowed for the selected session policy/i);
+
+    expect(execute).not.toHaveBeenCalled();
   });
 });

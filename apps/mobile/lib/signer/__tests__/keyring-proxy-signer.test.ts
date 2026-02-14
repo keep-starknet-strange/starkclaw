@@ -203,6 +203,46 @@ describe("KeyringProxySigner", () => {
     } satisfies Partial<KeyringProxySignerError>);
   });
 
+  it("denies signing when transfer target token does not match local policy binding", async () => {
+    const fetchMock = vi.fn();
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const signer = createSigner({
+      allowedTransferTokenAddress: "0x1111",
+    });
+
+    await expect(
+      signer.signTransaction(
+        [{ contractAddress: "0x2222", entrypoint: "transfer", calldata: ["0x1", "0x2", "0x0"] }],
+        { chainId: "0x1", nonce: "0x1" } as never
+      )
+    ).rejects.toMatchObject({
+      name: "KeyringProxySignerError",
+      code: "POLICY_DENIED",
+    } satisfies Partial<KeyringProxySignerError>);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("denies signing when call shape is not a single transfer call under local policy binding", async () => {
+    const fetchMock = vi.fn();
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const signer = createSigner({
+      allowedTransferTokenAddress: "0x1111",
+    });
+
+    await expect(
+      signer.signTransaction(
+        [{ contractAddress: "0x1111", entrypoint: "approve", calldata: ["0x1", "0x2", "0x0"] }],
+        { chainId: "0x1", nonce: "0x1" } as never
+      )
+    ).rejects.toMatchObject({
+      name: "KeyringProxySignerError",
+      code: "POLICY_DENIED",
+    } satisfies Partial<KeyringProxySignerError>);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("maps 401 nonce/replay errors to deterministic auth-replay code", async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: false,
