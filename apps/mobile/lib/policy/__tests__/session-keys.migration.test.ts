@@ -102,8 +102,8 @@ describe("session-keys migration", () => {
     expect(calls[0].calldata[0]).toBe(session.key);
     expect(calls[0].calldata[1]).toBe(session.validUntil.toString());
     expect(calls[0].calldata[2]).toBe("100");
-    expect(calls[0].calldata[3]).toBe("4");
-    expect(calls[0].calldata.slice(4)).toHaveLength(4);
+    expect(calls[0].calldata[3]).toBe("1");
+    expect(calls[0].calldata.slice(4)).toHaveLength(1);
     for (const selector of calls[0].calldata.slice(4)) {
       expect(selector).toMatch(/^0x[0-9a-f]+$/);
     }

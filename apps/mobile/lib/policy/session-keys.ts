@@ -12,9 +12,6 @@ const DEFAULT_SESSION_MAX_CALLS = 100;
 const DEFAULT_SPENDING_WINDOW_SECONDS = 86_400;
 const DEFAULT_ALLOWED_ENTRYPOINTS = [
   hash.getSelectorFromName("transfer"),
-  hash.getSelectorFromName("approve"),
-  hash.getSelectorFromName("increase_allowance"),
-  hash.getSelectorFromName("increaseAllowance"),
 ];
 
 function sessionPkStorageKey(sessionPublicKey: string): string {
@@ -124,7 +121,8 @@ export async function registerSessionKeyOnchain(params: {
   });
 
   // SessionAccount scopes sessions by entrypoint selectors (not contract address).
-  // Keep default selectors tight and rely on per-token spending policy for amount bounds.
+  // Keep default selectors minimal (`transfer` only) and rely on per-token
+  // spending policy for amount bounds.
   const tx = await account.execute([
     {
       contractAddress: params.wallet.accountAddress,
