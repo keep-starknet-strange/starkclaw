@@ -18,6 +18,9 @@ export type RemoteSignerRuntimeConfig = {
   requestTimeoutMs: number;
   requester: string;
   mtlsRequired: boolean;
+  pinnedPublicKeyHashes: string[];
+  pinningIncludeSubdomains: boolean;
+  pinningExpirationDate?: string;
 };
 
 export class SignerRuntimeConfigError extends Error {
@@ -29,7 +32,11 @@ export class SignerRuntimeConfigError extends Error {
       | "INVALID_PROXY_URL"
       | "INSECURE_TRANSPORT"
       | "INVALID_REQUESTER"
-      | "MTLS_REQUIRED",
+      | "MTLS_REQUIRED"
+      | "PINNING_REQUIRED"
+      | "INVALID_PINNING_CONFIG"
+      | "PINNING_UNAVAILABLE"
+      | "PINNING_INIT_FAILED",
     message: string
   ) {
     super(message);
@@ -46,6 +53,19 @@ function parsePositiveInt(value: string | undefined, fallback: number): number {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
   return Math.floor(parsed);
+}
+
+function parsePinnedPublicKeyHashes(value: string | undefined): string[] {
+  if (!value) return [];
+  return value
+    .split(",")
+    .map((hash) => hash.trim())
+    .filter((hash) => hash.length > 0);
+}
+
+function isValidPinnedHash(hash: string): boolean {
+  // base64-encoded sha256(SPKI) should be 44 chars ending with "="
+  return /^[A-Za-z0-9+/]{43}=$/.test(hash);
 }
 
 function isLoopbackHost(hostname: string): boolean {
@@ -149,6 +169,39 @@ export async function loadRemoteSignerRuntimeConfig(): Promise<RemoteSignerRunti
     );
   }
 
+  const pinnedPublicKeyHashes = parsePinnedPublicKeyHashes(
+    process.env.EXPO_PUBLIC_SISNA_PINNED_PUBKEYS
+  );
+  if (isProduction && pinnedPublicKeyHashes.length === 0) {
+    throw new SignerRuntimeConfigError(
+      "PINNING_REQUIRED",
+      "Production remote signer mode requires EXPO_PUBLIC_SISNA_PINNED_PUBKEYS."
+    );
+  }
+  if (isProduction && pinnedPublicKeyHashes.length < 2) {
+    throw new SignerRuntimeConfigError(
+      "INVALID_PINNING_CONFIG",
+      "Production remote signer mode requires at least two pinned public key hashes."
+    );
+  }
+  if (pinnedPublicKeyHashes.some((hash) => !isValidPinnedHash(hash))) {
+    throw new SignerRuntimeConfigError(
+      "INVALID_PINNING_CONFIG",
+      "EXPO_PUBLIC_SISNA_PINNED_PUBKEYS must contain base64 sha256(SPKI) hashes."
+    );
+  }
+
+  const pinningIncludeSubdomains = parseBoolean(
+    process.env.EXPO_PUBLIC_SISNA_PIN_INCLUDE_SUBDOMAINS
+  );
+  const pinningExpirationDate = process.env.EXPO_PUBLIC_SISNA_PIN_EXPIRATION_DATE?.trim();
+  if (pinningExpirationDate && !/^\d{4}-\d{2}-\d{2}$/.test(pinningExpirationDate)) {
+    throw new SignerRuntimeConfigError(
+      "INVALID_PINNING_CONFIG",
+      "EXPO_PUBLIC_SISNA_PIN_EXPIRATION_DATE must be in yyyy-MM-dd format."
+    );
+  }
+
   return {
     proxyUrl: proxyUrl.toString(),
     clientId: credentials.clientId,
@@ -157,5 +210,8 @@ export async function loadRemoteSignerRuntimeConfig(): Promise<RemoteSignerRunti
     requestTimeoutMs: parsePositiveInt(process.env.EXPO_PUBLIC_SISNA_REQUEST_TIMEOUT_MS, 8_000),
     requester,
     mtlsRequired,
+    pinnedPublicKeyHashes,
+    pinningIncludeSubdomains,
+    pinningExpirationDate,
   };
 }
