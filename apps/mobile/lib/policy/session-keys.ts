@@ -8,6 +8,11 @@ import { secureDelete, secureGet, secureSet } from "../storage/secure-store";
 import type { WalletSnapshot } from "../wallet/wallet";
 
 const SESSION_KEYS_INDEX_ID = "starkclaw.session_keys.v1";
+const DEFAULT_SESSION_MAX_CALLS = 100;
+const DEFAULT_SPENDING_WINDOW_SECONDS = 86_400;
+const DEFAULT_ALLOWED_ENTRYPOINTS = [
+  hash.getSelectorFromName("transfer"),
+];
 
 function sessionPkStorageKey(sessionPublicKey: string): string {
   return `starkclaw.session_pk.${sessionPublicKey}`;
@@ -23,6 +28,7 @@ export type StoredSessionKey = {
   tokenSymbol: string;
   tokenAddress: string;
   spendingLimit: string; // decimal string in token base units
+  maxCalls?: number; // defaults to DEFAULT_SESSION_MAX_CALLS
   validAfter: number; // unix seconds
   validUntil: number; // unix seconds
   allowedContract: string;
@@ -114,19 +120,35 @@ export async function registerSessionKeyOnchain(params: {
     ownerPrivateKey: params.ownerPrivateKey,
   });
 
-  const tx = await account.execute({
-    contractAddress: params.wallet.accountAddress,
-    entrypoint: "register_session_key",
-    calldata: [
-      params.session.key,
-      params.session.validAfter.toString(),
-      params.session.validUntil.toString(),
-      low,
-      high,
-      params.session.tokenAddress,
-      params.session.allowedContract,
-    ],
-  });
+  // SessionAccount scopes sessions by entrypoint selectors (not contract address).
+  // Keep default selectors minimal (`transfer` only) and rely on per-token
+  // spending policy for amount bounds.
+  const tx = await account.execute([
+    {
+      contractAddress: params.wallet.accountAddress,
+      entrypoint: "add_or_update_session_key",
+      calldata: [
+        params.session.key,
+        params.session.validUntil.toString(),
+        (params.session.maxCalls ?? DEFAULT_SESSION_MAX_CALLS).toString(),
+        DEFAULT_ALLOWED_ENTRYPOINTS.length.toString(),
+        ...DEFAULT_ALLOWED_ENTRYPOINTS,
+      ],
+    },
+    {
+      contractAddress: params.wallet.accountAddress,
+      entrypoint: "set_spending_policy",
+      calldata: [
+        params.session.key,
+        params.session.tokenAddress,
+        low,
+        high,
+        low,
+        high,
+        DEFAULT_SPENDING_WINDOW_SECONDS.toString(),
+      ],
+    },
+  ]);
 
   await account.waitForTransaction(tx.transaction_hash, { retries: 60, retryInterval: 3_000 });
 
@@ -210,13 +232,20 @@ export async function isSessionKeyValidOnchain(params: {
   accountAddress: string;
   sessionPublicKey: string;
 }): Promise<boolean> {
-  const selector = hash.getSelectorFromName("is_session_key_valid");
-  const res = await callContract(params.rpcUrl, {
-    contract_address: params.accountAddress,
-    entry_point_selector: selector,
-    calldata: [params.sessionPublicKey],
-  });
-  const v = res[0] ?? "0x0";
-  return BigInt(v) !== 0n;
-}
+  try {
+    const selector = hash.getSelectorFromName("get_session_data");
+    const res = await callContract(params.rpcUrl, {
+      contract_address: params.accountAddress,
+      entry_point_selector: selector,
+      calldata: [params.sessionPublicKey],
+    });
+    const validUntil = BigInt(res[0] ?? "0x0");
+    const maxCalls = BigInt(res[1] ?? "0x0");
+    const callsUsed = BigInt(res[2] ?? "0x0");
+    const now = BigInt(nowSec());
 
+    return validUntil > now && callsUsed < maxCalls;
+  } catch {
+    return false;
+  }
+}
