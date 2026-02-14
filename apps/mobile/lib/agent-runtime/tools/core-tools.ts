@@ -276,7 +276,6 @@ export const executeTransferTool: ToolDefinition = {
         execution = await executeTransfer({
           wallet,
           action,
-          requester: "starkclaw-mobile",
           tool: "execute_transfer",
           mobileActionId,
         });

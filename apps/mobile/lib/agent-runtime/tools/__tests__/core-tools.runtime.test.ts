@@ -35,6 +35,31 @@ const getErc20BalanceMock = vi.mocked(getErc20Balance);
 const appendActivityMock = vi.mocked(appendActivity);
 
 describe("core-tools runtime wiring", () => {
+  const walletFixture = {
+    networkId: "sepolia" as const,
+    rpcUrl: "https://rpc.example",
+    chainIdHex: "0x534e5f5345504f4c4941",
+    ownerPublicKey: "0xaaa",
+    accountAddress: "0xabc",
+  };
+
+  const transferActionFixture = {
+    kind: "erc20_transfer" as const,
+    tokenSymbol: "USDC" as const,
+    tokenAddress: "0xusdc",
+    to: "0x123",
+    amount: "1",
+    amountBaseUnits: "1000000",
+    balanceBaseUnits: "2000000",
+    calldata: ["0x123", "0xf4240", "0x0"],
+    sessionPublicKey: "0xsession",
+    warnings: [],
+    policy: {
+      spendingLimitBaseUnits: "5000000",
+      validUntil: Math.floor(Date.now() / 1000) + 3600,
+    },
+  };
+
   beforeEach(() => {
     vi.resetAllMocks();
     appendActivityMock.mockResolvedValue({
@@ -64,29 +89,8 @@ describe("core-tools runtime wiring", () => {
   });
 
   it("executes transfer and returns signer correlation fields", async () => {
-    loadWalletMock.mockResolvedValue({
-      networkId: "sepolia",
-      rpcUrl: "https://rpc.example",
-      chainIdHex: "0x534e5f5345504f4c4941",
-      ownerPublicKey: "0xaaa",
-      accountAddress: "0xabc",
-    });
-    prepareTransferFromTextMock.mockResolvedValue({
-      kind: "erc20_transfer",
-      tokenSymbol: "USDC",
-      tokenAddress: "0xusdc",
-      to: "0x123",
-      amount: "1",
-      amountBaseUnits: "1000000",
-      balanceBaseUnits: "2000000",
-      calldata: ["0x123", "0xf4240", "0x0"],
-      sessionPublicKey: "0xsession",
-      warnings: [],
-      policy: {
-        spendingLimitBaseUnits: "5000000",
-        validUntil: Math.floor(Date.now() / 1000) + 3600,
-      },
-    });
+    loadWalletMock.mockResolvedValue(walletFixture);
+    prepareTransferFromTextMock.mockResolvedValue(transferActionFixture);
     executeTransferMock.mockResolvedValue({
       txHash: "0xtx",
       executionStatus: "SUCCEEDED",
@@ -107,6 +111,13 @@ describe("core-tools runtime wiring", () => {
     expect(result.ok).toBe(true);
     expect(prepareTransferFromTextMock).toHaveBeenCalledTimes(1);
     expect(executeTransferMock).toHaveBeenCalledTimes(1);
+    const executeArgs = executeTransferMock.mock.calls[0]?.[0];
+    expect(executeArgs).toMatchObject({
+      mobileActionId: "mobile_action_1",
+      tool: "execute_transfer",
+    });
+    // Requester label should come from runtime signer config (env), not be hardcoded at tool layer.
+    expect(executeArgs).not.toHaveProperty("requester");
     expect(appendActivityMock).toHaveBeenCalledTimes(1);
     expect(appendActivityMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -127,29 +138,8 @@ describe("core-tools runtime wiring", () => {
   });
 
   it("records failed execution attempts with correlation metadata", async () => {
-    loadWalletMock.mockResolvedValue({
-      networkId: "sepolia",
-      rpcUrl: "https://rpc.example",
-      chainIdHex: "0x534e5f5345504f4c4941",
-      ownerPublicKey: "0xaaa",
-      accountAddress: "0xabc",
-    });
-    prepareTransferFromTextMock.mockResolvedValue({
-      kind: "erc20_transfer",
-      tokenSymbol: "USDC",
-      tokenAddress: "0xusdc",
-      to: "0x123",
-      amount: "1",
-      amountBaseUnits: "1000000",
-      balanceBaseUnits: "2000000",
-      calldata: ["0x123", "0xf4240", "0x0"],
-      sessionPublicKey: "0xsession",
-      warnings: [],
-      policy: {
-        spendingLimitBaseUnits: "5000000",
-        validUntil: Math.floor(Date.now() / 1000) + 3600,
-      },
-    });
+    loadWalletMock.mockResolvedValue(walletFixture);
+    prepareTransferFromTextMock.mockResolvedValue(transferActionFixture);
     executeTransferMock.mockRejectedValue(new Error("Signer authentication failed (401)."));
 
     const result = await executeTransferTool.handler({
@@ -168,6 +158,36 @@ describe("core-tools runtime wiring", () => {
         status: "unknown",
         mobileActionId: "mobile_action_fail_1",
         signerRequestId: null,
+      })
+    );
+  });
+
+  it.each([
+    "Signer rejected replayed nonce. Retry with a fresh request.",
+    "Signer authentication failed (401). Check remote signer credentials.",
+    "Signer policy denied this transfer. Review session policy and limits.",
+  ])("surfaces signer hard failures as deterministic tool errors: %s", async (message) => {
+    loadWalletMock.mockResolvedValue(walletFixture);
+    prepareTransferFromTextMock.mockResolvedValue(transferActionFixture);
+    executeTransferMock.mockRejectedValue(new Error(message));
+
+    const result = await executeTransferTool.handler({
+      network: "sepolia",
+      tokenSymbol: "USDC",
+      amount: "1",
+      to: "0x123",
+      mobileActionId: "mobile_action_hard_fail",
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toBe(message);
+    }
+    expect(appendActivityMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mobileActionId: "mobile_action_hard_fail",
+        signerRequestId: null,
+        revertReason: message,
       })
     );
   });
@@ -210,29 +230,8 @@ describe("core-tools runtime wiring", () => {
   });
 
   it("prepare_transfer delegates to transfer preparation", async () => {
-    loadWalletMock.mockResolvedValue({
-      networkId: "sepolia",
-      rpcUrl: "https://rpc.example",
-      chainIdHex: "0x534e5f5345504f4c4941",
-      ownerPublicKey: "0xaaa",
-      accountAddress: "0xabc",
-    });
-    prepareTransferFromTextMock.mockResolvedValue({
-      kind: "erc20_transfer",
-      tokenSymbol: "USDC",
-      tokenAddress: "0xusdc",
-      to: "0x123",
-      amount: "1",
-      amountBaseUnits: "1000000",
-      balanceBaseUnits: "2000000",
-      calldata: ["0x123", "0xf4240", "0x0"],
-      sessionPublicKey: "0xsession",
-      warnings: [],
-      policy: {
-        spendingLimitBaseUnits: "5000000",
-        validUntil: Math.floor(Date.now() / 1000) + 3600,
-      },
-    });
+    loadWalletMock.mockResolvedValue(walletFixture);
+    prepareTransferFromTextMock.mockResolvedValue(transferActionFixture);
 
     const result = await prepareTransferTool.handler({
       network: "sepolia",
