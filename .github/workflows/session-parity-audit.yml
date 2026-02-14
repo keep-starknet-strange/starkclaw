@@ -14,9 +14,9 @@ jobs:
   session-parity:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           repository: keep-starknet-strange/starknet-agentic
           path: starknet-agentic
@@ -62,7 +62,7 @@ jobs:
   docs-check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check security docs exist
         run: |
