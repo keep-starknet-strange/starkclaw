@@ -13,7 +13,12 @@ vi.mock("@/lib/starknet/balances", () => ({
   getErc20Balance: vi.fn(),
 }));
 
+vi.mock("@/lib/activity/activity", () => ({
+  appendActivity: vi.fn(),
+}));
+
 import { executeTransfer, prepareTransferFromText } from "@/lib/agent/transfer";
+import { appendActivity } from "@/lib/activity/activity";
 import { getErc20Balance } from "@/lib/starknet/balances";
 import { loadWallet } from "@/lib/wallet/wallet";
 
@@ -27,10 +32,19 @@ const loadWalletMock = vi.mocked(loadWallet);
 const prepareTransferFromTextMock = vi.mocked(prepareTransferFromText);
 const executeTransferMock = vi.mocked(executeTransfer);
 const getErc20BalanceMock = vi.mocked(getErc20Balance);
+const appendActivityMock = vi.mocked(appendActivity);
 
 describe("core-tools runtime wiring", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    appendActivityMock.mockResolvedValue({
+      id: "activity-1",
+      createdAt: Math.floor(Date.now() / 1000),
+      networkId: "sepolia",
+      kind: "transfer",
+      summary: "Transfer",
+      status: "succeeded",
+    } as never);
   });
 
   it("returns error when wallet is missing for execute_transfer", async () => {
@@ -93,6 +107,15 @@ describe("core-tools runtime wiring", () => {
     expect(result.ok).toBe(true);
     expect(prepareTransferFromTextMock).toHaveBeenCalledTimes(1);
     expect(executeTransferMock).toHaveBeenCalledTimes(1);
+    expect(appendActivityMock).toHaveBeenCalledTimes(1);
+    expect(appendActivityMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        txHash: "0xtx",
+        status: "succeeded",
+        mobileActionId: "mobile_action_1",
+        signerRequestId: "req-123",
+      })
+    );
     if (result.ok) {
       expect(result.data).toMatchObject({
         txHash: "0xtx",
@@ -101,6 +124,52 @@ describe("core-tools runtime wiring", () => {
         mobileActionId: "mobile_action_1",
       });
     }
+  });
+
+  it("records failed execution attempts with correlation metadata", async () => {
+    loadWalletMock.mockResolvedValue({
+      networkId: "sepolia",
+      rpcUrl: "https://rpc.example",
+      chainIdHex: "0x534e5f5345504f4c4941",
+      ownerPublicKey: "0xaaa",
+      accountAddress: "0xabc",
+    });
+    prepareTransferFromTextMock.mockResolvedValue({
+      kind: "erc20_transfer",
+      tokenSymbol: "USDC",
+      tokenAddress: "0xusdc",
+      to: "0x123",
+      amount: "1",
+      amountBaseUnits: "1000000",
+      balanceBaseUnits: "2000000",
+      calldata: ["0x123", "0xf4240", "0x0"],
+      sessionPublicKey: "0xsession",
+      warnings: [],
+      policy: {
+        spendingLimitBaseUnits: "5000000",
+        validUntil: Math.floor(Date.now() / 1000) + 3600,
+      },
+    });
+    executeTransferMock.mockRejectedValue(new Error("Signer authentication failed (401)."));
+
+    const result = await executeTransferTool.handler({
+      network: "sepolia",
+      tokenSymbol: "USDC",
+      amount: "1",
+      to: "0x123",
+      mobileActionId: "mobile_action_fail_1",
+    });
+
+    expect(result.ok).toBe(false);
+    expect(appendActivityMock).toHaveBeenCalledTimes(1);
+    expect(appendActivityMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "transfer",
+        status: "unknown",
+        mobileActionId: "mobile_action_fail_1",
+        signerRequestId: null,
+      })
+    );
   });
 
   it("returns network mismatch error for get_balances", async () => {

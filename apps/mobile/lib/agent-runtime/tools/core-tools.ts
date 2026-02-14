@@ -9,6 +9,7 @@
  */
 
 import { executeTransfer, prepareTransferFromText } from "@/lib/agent/transfer";
+import { appendActivity, type ActivityStatus } from "@/lib/activity/activity";
 import { getErc20Balance } from "@/lib/starknet/balances";
 import { STARKNET_NETWORKS, type StarknetNetworkId } from "@/lib/starknet/networks";
 import { TOKENS, type StarknetTokenSymbol } from "@/lib/starknet/tokens";
@@ -36,6 +37,18 @@ function parseNetwork(value: string): StarknetNetworkId | null {
 
 function isValidHexAddress(value: string): boolean {
   return /^0x[0-9a-fA-F]+$/.test(value);
+}
+
+function createMobileActionId(): string {
+  return `mobile_action_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`;
+}
+
+function mapExecutionStatusToActivityStatus(executionStatus: string | null): ActivityStatus {
+  if (!executionStatus) return "unknown";
+  const normalized = executionStatus.toUpperCase();
+  if (normalized.includes("SUCCEED")) return "succeeded";
+  if (normalized.includes("REVERT")) return "reverted";
+  return "unknown";
 }
 
 async function loadWalletForNetwork(network: StarknetNetworkId) {
@@ -242,7 +255,9 @@ export const executeTransferTool: ToolDefinition = {
       const tokenSymbol = String(args.tokenSymbol).toUpperCase() as StarknetTokenSymbol;
       const amount = String(args.amount);
       const to = String(args.to);
-      const mobileActionId = args.mobileActionId ? String(args.mobileActionId) : undefined;
+      const mobileActionId = args.mobileActionId
+        ? String(args.mobileActionId)
+        : createMobileActionId();
 
       if (!isValidHexAddress(to)) {
         return { ok: false, error: "Invalid recipient address." };
@@ -254,12 +269,41 @@ export const executeTransferTool: ToolDefinition = {
         text: `send ${amount} ${tokenSymbol} to ${to}`,
       });
 
-      const execution = await executeTransfer({
-        wallet,
-        action,
-        requester: "starkclaw-mobile",
-        tool: "execute_transfer",
-        mobileActionId,
+      let execution:
+        | Awaited<ReturnType<typeof executeTransfer>>
+        | null = null;
+      try {
+        execution = await executeTransfer({
+          wallet,
+          action,
+          requester: "starkclaw-mobile",
+          tool: "execute_transfer",
+          mobileActionId,
+        });
+      } catch (err) {
+        await appendActivity({
+          networkId: wallet.networkId,
+          kind: "transfer",
+          summary: `Transfer ${amount} ${tokenSymbol} to ${to}`,
+          status: "unknown",
+          mobileActionId,
+          signerRequestId: null,
+          executionStatus: null,
+          revertReason: err instanceof Error ? err.message : String(err),
+        });
+        throw err;
+      }
+
+      await appendActivity({
+        networkId: wallet.networkId,
+        kind: "transfer",
+        summary: `Transfer ${amount} ${tokenSymbol} to ${to}`,
+        txHash: execution.txHash,
+        status: mapExecutionStatusToActivityStatus(execution.executionStatus),
+        executionStatus: execution.executionStatus,
+        revertReason: execution.revertReason,
+        mobileActionId: execution.mobileActionId,
+        signerRequestId: execution.signerRequestId,
       });
 
       return {
