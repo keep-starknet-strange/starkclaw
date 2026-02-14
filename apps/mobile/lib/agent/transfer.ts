@@ -1,4 +1,4 @@
-import { validateAndParseAddress } from "starknet";
+import { EDataAvailabilityMode, validateAndParseAddress } from "starknet";
 
 import { getSessionPrivateKey, listSessionKeys, type StoredSessionKey } from "../policy/session-keys";
 import { KeyringProxySigner, KeyringProxySignerError } from "../signer/keyring-proxy-signer";
@@ -124,6 +124,35 @@ function extractExecutionStatus(receipt: unknown): string | null {
   return typeof v === "string" ? v : null;
 }
 
+function isL2GasRevert(status: string | null, revertReason: string | null): boolean {
+  if (status !== "REVERTED") return false;
+  if (!revertReason) return false;
+  return /Insufficient max L2Gas/i.test(revertReason);
+}
+
+function bumpBound(value: unknown, percent: number): bigint {
+  return (BigInt(value as bigint | number | string) * BigInt(100 + percent)) / 100n;
+}
+
+async function waitForReceiptOrFallback(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sessionAccount: any,
+  txHash: string
+): Promise<unknown> {
+  try {
+    return await sessionAccount.waitForTransaction(txHash, {
+      retries: 60,
+      retryInterval: 3_000,
+    });
+  } catch {
+    try {
+      return await sessionAccount.getTransactionReceipt(txHash);
+    } catch {
+      return null;
+    }
+  }
+}
+
 function createMobileActionId(): string {
   return `mobile_action_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`;
 }
@@ -225,12 +254,13 @@ export async function executeTransfer(params: {
   }
 
   let txHash = "";
+  const transferCall = {
+    contractAddress: params.action.tokenAddress,
+    entrypoint: "transfer",
+    calldata: params.action.calldata,
+  };
   try {
-    const tx = await sessionAccount.execute({
-      contractAddress: params.action.tokenAddress,
-      entrypoint: "transfer",
-      calldata: params.action.calldata,
-    });
+    const tx = await sessionAccount.execute(transferCall);
     txHash = tx.transaction_hash;
   } catch (err) {
     if (signerMode === "remote") {
@@ -244,24 +274,55 @@ export async function executeTransfer(params: {
     signerRequestId = remoteSigner.getLastRequestId() ?? null;
   }
 
-  let receipt: unknown = null;
-  try {
-    receipt = await sessionAccount.waitForTransaction(txHash, {
-      retries: 60,
-      retryInterval: 3_000,
-    });
-  } catch {
+  let receipt = await waitForReceiptOrFallback(sessionAccount, txHash);
+  let executionStatus = extractExecutionStatus(receipt);
+  let revertReason = extractRevertReason(receipt);
+
+  // Sepolia can under-estimate v3 L2 gas bounds. Retry once with bumped resource bounds.
+  if (isL2GasRevert(executionStatus, revertReason)) {
     try {
-      receipt = await sessionAccount.getTransactionReceipt(txHash);
+      const estimate = await sessionAccount.estimateInvokeFee(transferCall, { skipValidate: false });
+      const rb = estimate?.resourceBounds;
+
+      if (rb?.l1_gas && rb?.l1_data_gas && rb?.l2_gas) {
+        const tx = await sessionAccount.execute(transferCall, {
+          tip: 0n,
+          paymasterData: [],
+          accountDeploymentData: [],
+          nonceDataAvailabilityMode: EDataAvailabilityMode.L1,
+          feeDataAvailabilityMode: EDataAvailabilityMode.L1,
+          resourceBounds: {
+            l1_gas: {
+              max_amount: bumpBound(rb.l1_gas.max_amount, 30),
+              max_price_per_unit: bumpBound(rb.l1_gas.max_price_per_unit, 20),
+            },
+            l1_data_gas: {
+              max_amount: bumpBound(rb.l1_data_gas.max_amount, 120),
+              max_price_per_unit: bumpBound(rb.l1_data_gas.max_price_per_unit, 20),
+            },
+            l2_gas: {
+              max_amount: bumpBound(rb.l2_gas.max_amount, 40),
+              max_price_per_unit: bumpBound(rb.l2_gas.max_price_per_unit, 20),
+            },
+          },
+        });
+        txHash = tx.transaction_hash;
+        if (remoteSigner) {
+          signerRequestId = remoteSigner.getLastRequestId() ?? signerRequestId;
+        }
+        receipt = await waitForReceiptOrFallback(sessionAccount, txHash);
+        executionStatus = extractExecutionStatus(receipt);
+        revertReason = extractRevertReason(receipt);
+      }
     } catch {
-      // ignored
+      // Keep original revert result if retry path fails unexpectedly.
     }
   }
 
   return {
     txHash,
-    executionStatus: extractExecutionStatus(receipt),
-    revertReason: extractRevertReason(receipt),
+    executionStatus,
+    revertReason,
     signerMode,
     signerRequestId,
     mobileActionId,
