@@ -55,6 +55,17 @@ if (getSignerMode() === "remote") {
 }
 ```
 
+## Production Transport Profile
+
+Remote signer mode now enforces stricter production constraints in `runtime-config.ts`:
+
+- `EXPO_PUBLIC_SISNA_PROXY_URL` must be valid `https://...` (no insecure transport).
+- Loopback signer endpoints (`localhost`, `127.0.0.1`, `::1`) are rejected in production.
+- `EXPO_PUBLIC_SISNA_MTLS_REQUIRED` must be truthy in production.
+- `EXPO_PUBLIC_SISNA_REQUESTER` must be explicitly set in production (no default fallback).
+
+This prevents ambiguous deployment posture where app traffic appears "production" but is still using local/dev transport assumptions.
+
 ## Legacy Groundwork Usage
 
 ```typescript
@@ -108,6 +119,21 @@ try {
 | `NETWORK_ERROR` | - | Network/transport error | Yes |
 | `UNKNOWN_ERROR` | * | Unmapped status code | Maybe |
 | `VALIDATION_ERROR` | - | Request validation failed | No |
+
+### `KeyringProxySignerError` (runtime signer path)
+
+The execution path (`execute_transfer` in remote mode) uses typed errors from `keyring-proxy-signer.ts`:
+
+| Code | Source | Meaning |
+|------|--------|---------|
+| `TIMEOUT` | request abort timeout | Proxy did not respond in time |
+| `AUTH_REPLAY` | HTTP 401 + nonce/replay marker | Replay protection triggered |
+| `AUTH_INVALID` | HTTP 401 | Signature/auth headers invalid |
+| `POLICY_DENIED` | HTTP 403/422 | Signer policy blocked request |
+| `UPSTREAM_UNAVAILABLE` | HTTP 503 | Signer temporarily unavailable |
+| `UPSTREAM_ERROR` | HTTP 5xx/other status | Generic upstream failure |
+| `INVALID_RESPONSE` | response schema mismatch | Signer response failed validation |
+| `NETWORK_ERROR` | fetch/network failure | Transport/network failure before HTTP response |
 
 ## Type Definitions
 

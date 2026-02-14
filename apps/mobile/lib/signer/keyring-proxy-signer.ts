@@ -36,6 +36,27 @@ type KeyringSignResponse = {
   message_hash?: string;
 };
 
+export type KeyringProxySignerErrorCode =
+  | "TIMEOUT"
+  | "AUTH_REPLAY"
+  | "AUTH_INVALID"
+  | "POLICY_DENIED"
+  | "UPSTREAM_UNAVAILABLE"
+  | "UPSTREAM_ERROR"
+  | "INVALID_RESPONSE"
+  | "NETWORK_ERROR";
+
+export class KeyringProxySignerError extends Error {
+  constructor(
+    readonly code: KeyringProxySignerErrorCode,
+    message: string,
+    readonly statusCode?: number
+  ) {
+    super(message);
+    this.name = "KeyringProxySignerError";
+  }
+}
+
 function toFeltHex(value: string | bigint | number): string {
   if (typeof value === "string" && value.startsWith("0x")) {
     return value.toLowerCase();
@@ -75,18 +96,49 @@ function buildHmacPayload(args: {
   )}`;
 }
 
+function parseProxyError(rawText: string): { detail: string; error?: string } {
+  if (!rawText) return { detail: "" };
+  try {
+    const parsed = JSON.parse(rawText) as { error?: string; message?: string };
+    return {
+      detail: parsed.message || parsed.error || rawText,
+      error: parsed.error,
+    };
+  } catch {
+    return { detail: rawText };
+  }
+}
+
 function formatProxyError(status: number, rawText: string): string {
   if (!rawText) {
     return `Keyring proxy error (${status})`;
   }
-  try {
-    const parsed = JSON.parse(rawText) as { error?: string; message?: string };
-    const detail = parsed.message || parsed.error;
-    if (detail) return `Keyring proxy error (${status}): ${detail}`;
-  } catch {
-    // Keep raw body fallback.
-  }
+  const { detail } = parseProxyError(rawText);
+  if (detail) return `Keyring proxy error (${status}): ${detail}`;
   return `Keyring proxy error (${status}): ${rawText}`;
+}
+
+function mapProxyHttpError(status: number, rawText: string): KeyringProxySignerError {
+  const message = formatProxyError(status, rawText);
+  const { detail, error } = parseProxyError(rawText);
+  const lowered = `${error ?? ""} ${detail}`.toLowerCase();
+
+  if (status === 401) {
+    if (/\breplay\b|\bnonce\b/.test(lowered)) {
+      return new KeyringProxySignerError("AUTH_REPLAY", message, status);
+    }
+    return new KeyringProxySignerError("AUTH_INVALID", message, status);
+  }
+  if (status === 403 || status === 422) {
+    return new KeyringProxySignerError("POLICY_DENIED", message, status);
+  }
+  if (status === 503) {
+    return new KeyringProxySignerError("UPSTREAM_UNAVAILABLE", message, status);
+  }
+  if (status >= 500) {
+    return new KeyringProxySignerError("UPSTREAM_ERROR", message, status);
+  }
+  return new KeyringProxySignerError("UPSTREAM_ERROR", message, status);
 }
 
 async function randomNonceHex(byteLength: number): Promise<string> {
@@ -202,15 +254,21 @@ export class KeyringProxySigner extends SignerInterface {
 
       if (!response.ok) {
         const rawText = await response.text();
-        throw new Error(formatProxyError(response.status, rawText));
+        throw mapProxyHttpError(response.status, rawText);
       }
 
       const parsed = (await response.json()) as KeyringSignResponse;
       if (!Array.isArray(parsed.signature) || parsed.signature.length !== 4) {
-        throw new Error("Invalid keyring signature response: expected [pubkey, r, s, valid_until]");
+        throw new KeyringProxySignerError(
+          "INVALID_RESPONSE",
+          "Invalid keyring signature response: expected [pubkey, r, s, valid_until]"
+        );
       }
       if (!parsed.signature.every(isHexFelt)) {
-        throw new Error("Invalid keyring signature response: all signature felts must be hex");
+        throw new KeyringProxySignerError(
+          "INVALID_RESPONSE",
+          "Invalid keyring signature response: all signature felts must be hex"
+        );
       }
 
       const normalizedSignature = parsed.signature.map((felt) => num.toHex(BigInt(felt)));
@@ -222,12 +280,14 @@ export class KeyringProxySigner extends SignerInterface {
         : signaturePubKey;
 
       if (parsed.sessionPublicKey && !feltEqualsHex(parsed.sessionPublicKey, signaturePubKey)) {
-        throw new Error(
+        throw new KeyringProxySignerError(
+          "INVALID_RESPONSE",
           "Invalid keyring signature response: sessionPublicKey does not match signature pubkey"
         );
       }
       if (!feltEqualsHex(signatureValidUntil, expectedValidUntil)) {
-        throw new Error(
+        throw new KeyringProxySignerError(
+          "INVALID_RESPONSE",
           "Invalid keyring signature response: signature valid_until does not match requested window"
         );
       }
@@ -235,7 +295,8 @@ export class KeyringProxySigner extends SignerInterface {
         this.cachedSessionPublicKey &&
         !feltEqualsHex(this.cachedSessionPublicKey, responseSessionPublicKey)
       ) {
-        throw new Error(
+        throw new KeyringProxySignerError(
+          "INVALID_RESPONSE",
           "Invalid keyring signature response: session public key changed unexpectedly"
         );
       }
@@ -247,9 +308,13 @@ export class KeyringProxySigner extends SignerInterface {
       return normalizedSignature;
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
-        throw new Error("Keyring proxy request timed out");
+        throw new KeyringProxySignerError("TIMEOUT", "Keyring proxy request timed out");
       }
-      throw error;
+      if (error instanceof KeyringProxySignerError) {
+        throw error;
+      }
+      const message = error instanceof Error ? error.message : String(error);
+      throw new KeyringProxySignerError("NETWORK_ERROR", message);
     } finally {
       clearTimeout(timeout);
     }

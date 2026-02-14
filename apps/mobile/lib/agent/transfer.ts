@@ -1,7 +1,7 @@
 import { validateAndParseAddress } from "starknet";
 
 import { getSessionPrivateKey, listSessionKeys, type StoredSessionKey } from "../policy/session-keys";
-import { KeyringProxySigner } from "../signer/keyring-proxy-signer";
+import { KeyringProxySigner, KeyringProxySignerError } from "../signer/keyring-proxy-signer";
 import {
   type SignerMode,
   SignerRuntimeConfigError,
@@ -131,6 +131,20 @@ function createMobileActionId(): string {
 function mapRemoteSignerError(err: unknown): Error {
   if (err instanceof SignerRuntimeConfigError) {
     return err;
+  }
+  if (err instanceof KeyringProxySignerError) {
+    if (err.code === "TIMEOUT") {
+      return new Error("Signer timeout. Retry the transfer.");
+    }
+    if (err.code === "AUTH_REPLAY") {
+      return new Error("Signer rejected replayed nonce. Retry with a fresh request.");
+    }
+    if (err.code === "AUTH_INVALID") {
+      return new Error("Signer authentication failed (401). Check remote signer credentials.");
+    }
+    if (err.code === "POLICY_DENIED") {
+      return new Error("Signer policy denied this transfer. Review session policy and limits.");
+    }
   }
   const msg = err instanceof Error ? err.message : String(err);
 

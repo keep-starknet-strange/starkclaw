@@ -28,6 +28,7 @@ export class SignerRuntimeConfigError extends Error {
       | "INVALID_CREDENTIALS"
       | "INVALID_PROXY_URL"
       | "INSECURE_TRANSPORT"
+      | "INVALID_REQUESTER"
       | "MTLS_REQUIRED",
     message: string
   ) {
@@ -119,6 +120,12 @@ export async function loadRemoteSignerRuntimeConfig(): Promise<RemoteSignerRunti
       "Production remote signer mode requires EXPO_PUBLIC_SISNA_MTLS_REQUIRED=true."
     );
   }
+  if (isProduction && loopback) {
+    throw new SignerRuntimeConfigError(
+      "INSECURE_TRANSPORT",
+      "Production remote signer mode cannot use loopback signer endpoints."
+    );
+  }
 
   const credentials = await loadSignerCredentials();
   if (!credentials) {
@@ -134,13 +141,21 @@ export async function loadRemoteSignerRuntimeConfig(): Promise<RemoteSignerRunti
     );
   }
 
+  const requester = process.env.EXPO_PUBLIC_SISNA_REQUESTER?.trim() || "starkclaw-mobile";
+  if (isProduction && requester === "starkclaw-mobile") {
+    throw new SignerRuntimeConfigError(
+      "INVALID_REQUESTER",
+      "Production remote signer mode requires explicit EXPO_PUBLIC_SISNA_REQUESTER label."
+    );
+  }
+
   return {
     proxyUrl: proxyUrl.toString(),
     clientId: credentials.clientId,
     hmacSecret: credentials.hmacSecret,
     keyId: credentials.keyId,
     requestTimeoutMs: parsePositiveInt(process.env.EXPO_PUBLIC_SISNA_REQUEST_TIMEOUT_MS, 8_000),
-    requester: process.env.EXPO_PUBLIC_SISNA_REQUESTER?.trim() || "starkclaw-mobile",
+    requester,
     mtlsRequired,
   };
 }

@@ -9,7 +9,7 @@ vi.mock("expo-crypto", () => ({
 
 import * as Crypto from "expo-crypto";
 
-import { KeyringProxySigner } from "../keyring-proxy-signer";
+import { KeyringProxySigner, KeyringProxySignerError } from "../keyring-proxy-signer";
 
 const randomBytesMock = vi.mocked(Crypto.getRandomBytesAsync);
 
@@ -197,7 +197,48 @@ describe("KeyringProxySigner", () => {
         [{ contractAddress: "0x99", entrypoint: "transfer", calldata: ["0x1", "0x2", "0x0"] }],
         { chainId: "0x534e5f5345504f4c4941", nonce: "0x7" } as never
       )
-    ).rejects.toThrow(/Keyring proxy error \(422\)/);
+    ).rejects.toMatchObject({
+      name: "KeyringProxySignerError",
+      code: "POLICY_DENIED",
+    } satisfies Partial<KeyringProxySignerError>);
+  });
+
+  it("maps 401 nonce/replay errors to deterministic auth-replay code", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      text: async () => JSON.stringify({ error: "replay_nonce", message: "nonce already used" }),
+    }) as unknown as typeof fetch;
+
+    const signer = createSigner();
+    await expect(
+      signer.signTransaction(
+        [{ contractAddress: "0x99", entrypoint: "transfer", calldata: ["0x1"] }],
+        { chainId: "0x1", nonce: "0x1" } as never
+      )
+    ).rejects.toMatchObject({
+      name: "KeyringProxySignerError",
+      code: "AUTH_REPLAY",
+    } satisfies Partial<KeyringProxySignerError>);
+  });
+
+  it("maps 401 authentication failures to deterministic auth-invalid code", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      text: async () => JSON.stringify({ error: "invalid_signature", message: "bad signature" }),
+    }) as unknown as typeof fetch;
+
+    const signer = createSigner();
+    await expect(
+      signer.signTransaction(
+        [{ contractAddress: "0x99", entrypoint: "transfer", calldata: ["0x1"] }],
+        { chainId: "0x1", nonce: "0x1" } as never
+      )
+    ).rejects.toMatchObject({
+      name: "KeyringProxySignerError",
+      code: "AUTH_INVALID",
+    } satisfies Partial<KeyringProxySignerError>);
   });
 
   it("formats non-json and empty proxy errors", async () => {
@@ -383,6 +424,9 @@ describe("KeyringProxySigner", () => {
         [{ contractAddress: "0x99", entrypoint: "transfer", calldata: ["0x1", "0x2", "0x0"] }],
         { chainId: "0x534e5f5345504f4c4941", nonce: "0x7" } as never
       )
-    ).rejects.toThrow(/timed out/i);
+    ).rejects.toMatchObject({
+      name: "KeyringProxySignerError",
+      code: "TIMEOUT",
+    } satisfies Partial<KeyringProxySignerError>);
   });
 });

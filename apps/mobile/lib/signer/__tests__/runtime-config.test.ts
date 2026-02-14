@@ -130,6 +130,7 @@ describe("runtime-config", () => {
     process.env.NODE_ENV = "production";
     process.env.EXPO_PUBLIC_SISNA_PROXY_URL = "https://signer.internal:8545";
     process.env.EXPO_PUBLIC_SISNA_MTLS_REQUIRED = "yes";
+    process.env.EXPO_PUBLIC_SISNA_REQUESTER = "starkclaw-prod";
     secureGetMock.mockResolvedValue(
       JSON.stringify({
         clientId: "mobile-client",
@@ -140,6 +141,40 @@ describe("runtime-config", () => {
     await expect(loadRemoteSignerRuntimeConfig()).resolves.toMatchObject({
       mtlsRequired: true,
     });
+  });
+
+  it("rejects production config when proxy endpoint is loopback", async () => {
+    process.env.NODE_ENV = "production";
+    process.env.EXPO_PUBLIC_SISNA_PROXY_URL = "https://127.0.0.1:8545";
+    process.env.EXPO_PUBLIC_SISNA_MTLS_REQUIRED = "true";
+    process.env.EXPO_PUBLIC_SISNA_REQUESTER = "starkclaw-prod";
+    secureGetMock.mockResolvedValue(
+      JSON.stringify({
+        clientId: "mobile-client",
+        hmacSecret: "super-secret",
+      })
+    );
+
+    await expect(loadRemoteSignerRuntimeConfig()).rejects.toMatchObject({
+      code: "INSECURE_TRANSPORT",
+    } satisfies Partial<SignerRuntimeConfigError>);
+  });
+
+  it("requires explicit requester label in production mode", async () => {
+    process.env.NODE_ENV = "production";
+    process.env.EXPO_PUBLIC_SISNA_PROXY_URL = "https://signer.internal:8545";
+    process.env.EXPO_PUBLIC_SISNA_MTLS_REQUIRED = "true";
+    process.env.EXPO_PUBLIC_SISNA_REQUESTER = "   ";
+    secureGetMock.mockResolvedValue(
+      JSON.stringify({
+        clientId: "mobile-client",
+        hmacSecret: "super-secret",
+      })
+    );
+
+    await expect(loadRemoteSignerRuntimeConfig()).rejects.toMatchObject({
+      code: "INVALID_REQUESTER",
+    } satisfies Partial<SignerRuntimeConfigError>);
   });
 
   it("fails when signer credentials are missing", async () => {
