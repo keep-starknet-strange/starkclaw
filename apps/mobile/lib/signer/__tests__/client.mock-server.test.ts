@@ -169,6 +169,7 @@ describe('SignerClient - Mock Server Integration', () => {
 
   it('should successfully sign transaction with mock signer', async () => {
     const client = createSignerClient({
+      _dangerouslyAllowInsecureHttp: true,
       baseUrl,
       apiKey: 'test-key',
     });
@@ -189,6 +190,7 @@ describe('SignerClient - Mock Server Integration', () => {
 
   it('should handle replay nonce error from mock signer', async () => {
     const client = createSignerClient({
+      _dangerouslyAllowInsecureHttp: true,
       baseUrl,
       apiKey: 'test-key',
     });
@@ -210,6 +212,7 @@ describe('SignerClient - Mock Server Integration', () => {
 
   it('should handle invalid auth error from mock signer', async () => {
     const client = createSignerClient({
+      _dangerouslyAllowInsecureHttp: true,
       baseUrl,
       apiKey: 'test-key',
     });
@@ -230,6 +233,7 @@ describe('SignerClient - Mock Server Integration', () => {
 
   it('should handle policy denied with details from mock signer', async () => {
     const client = createSignerClient({
+      _dangerouslyAllowInsecureHttp: true,
       baseUrl,
       apiKey: 'test-key',
     });
@@ -260,6 +264,7 @@ describe('SignerClient - Mock Server Integration', () => {
 
   it('should handle server error from mock signer', async () => {
     const client = createSignerClient({
+      _dangerouslyAllowInsecureHttp: true,
       baseUrl,
       apiKey: 'test-key',
     });
@@ -280,6 +285,7 @@ describe('SignerClient - Mock Server Integration', () => {
 
   it('should handle service unavailable from mock signer', async () => {
     const client = createSignerClient({
+      _dangerouslyAllowInsecureHttp: true,
       baseUrl,
       apiKey: 'test-key',
     });
@@ -300,6 +306,7 @@ describe('SignerClient - Mock Server Integration', () => {
 
   it('should handle unknown status codes from mock signer', async () => {
     const client = createSignerClient({
+      _dangerouslyAllowInsecureHttp: true,
       baseUrl,
       apiKey: 'test-key',
     });
@@ -320,6 +327,7 @@ describe('SignerClient - Mock Server Integration', () => {
 
   it('should handle network timeout', async () => {
     const client = createSignerClient({
+      _dangerouslyAllowInsecureHttp: true,
       baseUrl,
       apiKey: 'test-key',
       timeout: 100, // Very short timeout
@@ -343,6 +351,7 @@ describe('SignerClient - Mock Server Integration', () => {
     });
 
     const slowClient = createSignerClient({
+      _dangerouslyAllowInsecureHttp: true,
       baseUrl: `http://localhost:${slowPort}`,
       apiKey: 'test-key',
       timeout: 100,
@@ -357,6 +366,7 @@ describe('SignerClient - Mock Server Integration', () => {
 
   it('should handle connection refused (network error)', async () => {
     const client = createSignerClient({
+      _dangerouslyAllowInsecureHttp: true,
       baseUrl: 'http://localhost:1', // Port unlikely to be in use
       apiKey: 'test-key',
       timeout: 1000,
@@ -390,6 +400,7 @@ describe('SignerClient - Mock Server Integration', () => {
     });
 
     const client = createSignerClient({
+      _dangerouslyAllowInsecureHttp: true,
       baseUrl: `http://localhost:${inspectionPort}`,
       apiKey: 'test-key',
     });

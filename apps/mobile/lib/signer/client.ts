@@ -18,6 +18,38 @@ import {
 } from './types';
 
 /**
+ * Internal: Validate baseUrl uses HTTPS protocol
+ * Security: H-1 - Enforce HTTPS to prevent bearer token exposure via MITM
+ */
+function validateHttps(baseUrl: string, allowInsecure: boolean = false): void {
+  // Skip validation if explicitly allowed (TEST ONLY)
+  if (allowInsecure) {
+    return;
+  }
+
+  // Trim whitespace and normalize case for protocol check
+  const url = baseUrl.trim().toLowerCase();
+
+  // Reject empty or whitespace-only URLs
+  if (!url) {
+    throw new SignerClientError(
+      SignerErrorCode.VALIDATION_ERROR,
+      `baseUrl must use HTTPS protocol for secure communication (received empty URL)`,
+      0
+    );
+  }
+
+  // Only allow HTTPS protocol
+  if (!url.startsWith('https://')) {
+    throw new SignerClientError(
+      SignerErrorCode.VALIDATION_ERROR,
+      `baseUrl must use HTTPS protocol for secure communication (received: ${baseUrl})`,
+      0
+    );
+  }
+}
+
+/**
  * Internal: Validate request before sending
  */
 function validateRequest(request: SignSessionTransactionRequest): void {
@@ -96,10 +128,29 @@ async function mapHttpErrorToSignerError(
 }
 
 /**
+ * Internal: Sanitize API keys and bearer tokens from error messages
+ * Security: H-3 - Prevent credential leakage via error logs
+ */
+function sanitizeErrorMessage(message: string): string {
+  let sanitized = message;
+
+  // Sanitize Bearer tokens (case-insensitive)
+  sanitized = sanitized.replace(/Bearer\s+[^\s]+/gi, 'Bearer [REDACTED]');
+
+  // Sanitize sk_ prefixed API keys
+  sanitized = sanitized.replace(/sk_[^\s,)}\]]+/g, '[REDACTED]');
+
+  return sanitized;
+}
+
+/**
  * Internal: Map network/fetch error to typed SignerClientError
  */
 function mapNetworkErrorToSignerError(error: unknown): SignerClientError {
-  const message = error instanceof Error ? error.message : 'Unknown network error';
+  let message = error instanceof Error ? error.message : 'Unknown network error';
+
+  // Sanitize sensitive data from error message
+  message = sanitizeErrorMessage(message);
 
   // Check for timeout
   if (message.toLowerCase().includes('timeout') || message.toLowerCase().includes('aborted')) {
@@ -155,6 +206,9 @@ export function createSignerClient(config: SignerClientConfig) {
     async signSessionTransaction(
       request: SignSessionTransactionRequest
     ): Promise<SignSessionTransactionResponse> {
+      // Validate HTTPS first (security: prevent bearer token exposure)
+      validateHttps(config.baseUrl, config._dangerouslyAllowInsecureHttp);
+
       // Validate request before sending
       validateRequest(request);
 
@@ -194,8 +248,6 @@ export function createSignerClient(config: SignerClientConfig) {
           signal: controller.signal,
         });
 
-        clearTimeout(timeoutId);
-
         // Handle error responses
         if (!response.ok) {
           throw await mapHttpErrorToSignerError(response);
@@ -209,8 +261,6 @@ export function createSignerClient(config: SignerClientConfig) {
           requestId: data.request_id,
         };
       } catch (error) {
-        clearTimeout(timeoutId);
-
         // Re-throw if already a SignerClientError
         if (error instanceof SignerClientError) {
           throw error;
@@ -218,6 +268,9 @@ export function createSignerClient(config: SignerClientConfig) {
 
         // Map network/fetch errors
         throw mapNetworkErrorToSignerError(error);
+      } finally {
+        // Always cleanup timeout (M-5: prevent memory leaks)
+        clearTimeout(timeoutId);
       }
     },
   };
