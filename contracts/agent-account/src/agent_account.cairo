@@ -334,16 +334,31 @@ pub mod AgentAccount {
 
                 let calls_span = calls.span();
                 let mut i: u32 = 0;
+
+                // Pre-compute wildcard flag: all four allowed_contract slots are zero
+                let is_wildcard = policy.allowed_contract_0 == zero_addr
+                    && policy.allowed_contract_1 == zero_addr
+                    && policy.allowed_contract_2 == zero_addr
+                    && policy.allowed_contract_3 == zero_addr;
+
                 loop {
                     if i >= calls_span.len() {
                         break;
                     }
                     let call = calls_span.at(i);
 
-                    // Enforce allowed_contract policy (zero = any contract allowed)
-                    if policy.allowed_contract != zero_addr {
+                    // Enforce allowed_contract policy (all zeros = any contract allowed)
+                    if !is_wildcard {
+                        let call_target = *call.to;
                         assert(
-                            *call.to == policy.allowed_contract,
+                            (policy.allowed_contract_0 != zero_addr
+                                && call_target == policy.allowed_contract_0)
+                                || (policy.allowed_contract_1 != zero_addr
+                                    && call_target == policy.allowed_contract_1)
+                                || (policy.allowed_contract_2 != zero_addr
+                                    && call_target == policy.allowed_contract_2)
+                                || (policy.allowed_contract_3 != zero_addr
+                                    && call_target == policy.allowed_contract_3),
                             'Session: contract not allowed',
                         );
                     }

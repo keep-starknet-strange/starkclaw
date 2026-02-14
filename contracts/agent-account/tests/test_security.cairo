@@ -182,14 +182,17 @@ fn generic_call(target: ContractAddress, selector: felt252) -> Call {
     Call { to: target, selector, calldata: array![].span() }
 }
 
-/// Policy allowing any contract, spending on token_addr, with given limit
+/// Policy allowing only token_addr, spending on token_addr, with given limit
 fn spending_policy(limit: u256) -> SessionPolicy {
     SessionPolicy {
         valid_after: 0,
         valid_until: 999_999,
         spending_limit: limit,
         spending_token: token_addr(),
-        allowed_contract: token_addr(),
+        allowed_contract_0: token_addr(),
+        allowed_contract_1: zero_addr(),
+        allowed_contract_2: zero_addr(),
+        allowed_contract_3: zero_addr(),
     }
 }
 
@@ -200,7 +203,10 @@ fn any_contract_policy(limit: u256) -> SessionPolicy {
         valid_until: 999_999,
         spending_limit: limit,
         spending_token: token_addr(),
-        allowed_contract: zero_addr(),
+        allowed_contract_0: zero_addr(),
+        allowed_contract_1: zero_addr(),
+        allowed_contract_2: zero_addr(),
+        allowed_contract_3: zero_addr(),
     }
 }
 
@@ -359,7 +365,10 @@ fn test_fuzz_session_key_valid_signature(secret: felt252) {
             valid_until: 999_999,
             spending_limit: 1,
             spending_token: token_addr(),
-            allowed_contract: zero_addr(),
+            allowed_contract_0: zero_addr(),
+            allowed_contract_1: zero_addr(),
+            allowed_contract_2: zero_addr(),
+            allowed_contract_3: zero_addr(),
         },
     );
 
@@ -407,7 +416,10 @@ fn test_fuzz_wrong_signer_always_fails(wrong_secret: felt252) {
             valid_until: 999_999,
             spending_limit: 1,
             spending_token: token_addr(),
-            allowed_contract: zero_addr(),
+            allowed_contract_0: zero_addr(),
+            allowed_contract_1: zero_addr(),
+            allowed_contract_2: zero_addr(),
+            allowed_contract_3: zero_addr(),
         },
     );
 
@@ -438,7 +450,10 @@ fn test_fuzz_timestamp_at_valid_after_boundary(offset: u64) {
         valid_until,
         spending_limit: 1_000_000,
         spending_token: token_addr(),
-        allowed_contract: zero_addr(),
+        allowed_contract_0: zero_addr(),
+        allowed_contract_1: zero_addr(),
+        allowed_contract_2: zero_addr(),
+        allowed_contract_3: zero_addr(),
     };
     register_key(agent, addr, session_kp.public_key, policy);
 
@@ -473,7 +488,10 @@ fn test_timestamp_exact_boundaries() {
         valid_until: 2000,
         spending_limit: 100,
         spending_token: token_addr(),
-        allowed_contract: zero_addr(),
+        allowed_contract_0: zero_addr(),
+        allowed_contract_1: zero_addr(),
+        allowed_contract_2: zero_addr(),
+        allowed_contract_3: zero_addr(),
     };
     register_key(agent, addr, session_kp.public_key, policy);
 
@@ -675,7 +693,10 @@ fn test_validate_declare_session_key_panics() {
             valid_until: 999_999,
             spending_limit: 100,
             spending_token: token_addr(),
-            allowed_contract: zero_addr(),
+            allowed_contract_0: zero_addr(),
+            allowed_contract_1: zero_addr(),
+            allowed_contract_2: zero_addr(),
+            allowed_contract_3: zero_addr(),
         },
     );
 
@@ -741,13 +762,16 @@ fn test_non_transfer_call_not_tracked_as_spending() {
     let session_kp = KeyPairTrait::from_secret_key(0x5678_felt252);
     let (addr, account, agent) = deploy_agent_account(owner_kp.public_key);
 
-    // allowed_contract = addr (the account itself), spending_limit = 0
+    // allowed_contract_0 = addr (the account itself), spending_limit = 0
     let policy = SessionPolicy {
         valid_after: 0,
         valid_until: 999_999,
         spending_limit: 0, // zero limit — any tracked selector would panic
         spending_token: token_addr(),
-        allowed_contract: addr, // allow calling the account itself
+        allowed_contract_0: addr, // allow calling the account itself
+        allowed_contract_1: zero_addr(),
+        allowed_contract_2: zero_addr(),
+        allowed_contract_3: zero_addr(),
     };
     register_key(agent, addr, session_kp.public_key, policy);
 
@@ -787,7 +811,10 @@ fn test_transfer_from_snake_not_debited_as_spending() {
         valid_until: 999_999,
         spending_limit: 0,
         spending_token: mock_token,
-        allowed_contract: mock_token,
+        allowed_contract_0: mock_token,
+        allowed_contract_1: zero_addr(),
+        allowed_contract_2: zero_addr(),
+        allowed_contract_3: zero_addr(),
     };
     register_key(agent, addr, session_kp.public_key, policy);
 
@@ -817,7 +844,10 @@ fn test_transfer_from_camel_not_debited_as_spending() {
         valid_until: 999_999,
         spending_limit: 0,
         spending_token: mock_token,
-        allowed_contract: mock_token,
+        allowed_contract_0: mock_token,
+        allowed_contract_1: zero_addr(),
+        allowed_contract_2: zero_addr(),
+        allowed_contract_3: zero_addr(),
     };
     register_key(agent, addr, session_kp.public_key, policy);
 
@@ -848,7 +878,10 @@ fn test_u256_high_limb_spending_limit_enforced() {
         valid_until: 999_999,
         spending_limit: u256 { low: 5, high: 1 }, // 2^128 + 5
         spending_token: mock_token,
-        allowed_contract: mock_token,
+        allowed_contract_0: mock_token,
+        allowed_contract_1: zero_addr(),
+        allowed_contract_2: zero_addr(),
+        allowed_contract_3: zero_addr(),
     };
     register_key(agent, addr, session_kp.public_key, policy);
 
@@ -959,7 +992,10 @@ fn test_is_valid_signature_rejects_3_element_sig() {
             valid_until: 999_999,
             spending_limit: 100,
             spending_token: token_addr(),
-            allowed_contract: zero_addr(),
+            allowed_contract_0: zero_addr(),
+            allowed_contract_1: zero_addr(),
+            allowed_contract_2: zero_addr(),
+            allowed_contract_3: zero_addr(),
         },
     );
 
@@ -1010,7 +1046,10 @@ fn test_validate_deploy_session_key_panics() {
             valid_until: 999_999,
             spending_limit: 100,
             spending_token: token_addr(),
-            allowed_contract: zero_addr(),
+            allowed_contract_0: zero_addr(),
+            allowed_contract_1: zero_addr(),
+            allowed_contract_2: zero_addr(),
+            allowed_contract_3: zero_addr(),
         },
     );
 

@@ -35,6 +35,14 @@ fn attacker() -> ContractAddress {
     0xEEE.try_into().unwrap()
 }
 
+fn target_c() -> ContractAddress {
+    0xF01.try_into().unwrap()
+}
+
+fn target_d() -> ContractAddress {
+    0xF02.try_into().unwrap()
+}
+
 fn deploy_agent_account() -> (IAgentAccountDispatcher, ContractAddress) {
     let contract = declare("AgentAccount").unwrap().contract_class();
     let public_key: felt252 = 0x1234;
@@ -50,7 +58,10 @@ fn permissive_policy() -> SessionPolicy {
         valid_until: 999_999,
         spending_limit: 1_000_000,
         spending_token: token_addr(),
-        allowed_contract: zero_addr(), // any contract
+        allowed_contract_0: zero_addr(),
+        allowed_contract_1: zero_addr(),
+        allowed_contract_2: zero_addr(),
+        allowed_contract_3: zero_addr(),
     }
 }
 
@@ -61,7 +72,10 @@ fn restricted_policy() -> SessionPolicy {
         valid_until: 999_999,
         spending_limit: 100,
         spending_token: token_addr(),
-        allowed_contract: allowed_target(),
+        allowed_contract_0: allowed_target(),
+        allowed_contract_1: zero_addr(),
+        allowed_contract_2: zero_addr(),
+        allowed_contract_3: zero_addr(),
     }
 }
 
@@ -241,7 +255,10 @@ fn test_spending_before_valid_after_panics() {
         valid_until: 999_999,
         spending_limit: 1_000_000,
         spending_token: token_addr(),
-        allowed_contract: zero_addr(),
+        allowed_contract_0: zero_addr(),
+        allowed_contract_1: zero_addr(),
+        allowed_contract_2: zero_addr(),
+        allowed_contract_3: zero_addr(),
     };
     register_key(agent, addr, key, policy);
 
@@ -388,7 +405,10 @@ fn test_validate_call_not_yet_valid() {
         valid_until: 999_999,
         spending_limit: 1_000_000,
         spending_token: token_addr(),
-        allowed_contract: zero_addr(),
+        allowed_contract_0: zero_addr(),
+        allowed_contract_1: zero_addr(),
+        allowed_contract_2: zero_addr(),
+        allowed_contract_3: zero_addr(),
     };
     register_key(agent, addr, 0x1, policy);
     assert!(!agent.validate_session_key_call(0x1, allowed_target()));
@@ -792,4 +812,152 @@ fn test_full_session_key_lifecycle() {
     agent.use_session_key_allowance(0x1, token_addr(), 100); // full limit
     stop_cheat_caller_address(addr);
     stop_cheat_block_timestamp(addr);
+}
+
+// ===========================================================================
+// MULTI-TARGET ALLOWLIST (Issue #13)
+// ===========================================================================
+
+/// Helper: multi-target policy with two allowed contracts.
+fn two_target_policy() -> SessionPolicy {
+    SessionPolicy {
+        valid_after: 0,
+        valid_until: 999_999,
+        spending_limit: 1_000_000,
+        spending_token: token_addr(),
+        allowed_contract_0: allowed_target(),
+        allowed_contract_1: other_target(),
+        allowed_contract_2: zero_addr(),
+        allowed_contract_3: zero_addr(),
+    }
+}
+
+/// Helper: multi-target policy with all four slots filled.
+fn four_target_policy() -> SessionPolicy {
+    SessionPolicy {
+        valid_after: 0,
+        valid_until: 999_999,
+        spending_limit: 1_000_000,
+        spending_token: token_addr(),
+        allowed_contract_0: allowed_target(),
+        allowed_contract_1: other_target(),
+        allowed_contract_2: target_c(),
+        allowed_contract_3: target_d(),
+    }
+}
+
+#[test]
+fn test_validate_call_multi_target_both_allowed() {
+    let (agent, addr) = deploy_agent_account();
+    register_key(agent, addr, 0x1, two_target_policy());
+
+    // Both targets in the allowlist should pass
+    assert!(agent.validate_session_key_call(0x1, allowed_target()));
+    assert!(agent.validate_session_key_call(0x1, other_target()));
+}
+
+#[test]
+fn test_validate_call_multi_target_denied() {
+    let (agent, addr) = deploy_agent_account();
+    register_key(agent, addr, 0x1, two_target_policy());
+
+    // A target NOT in the allowlist should fail
+    assert!(!agent.validate_session_key_call(0x1, target_c()));
+    assert!(!agent.validate_session_key_call(0x1, attacker()));
+}
+
+#[test]
+fn test_validate_call_four_targets_all_allowed() {
+    let (agent, addr) = deploy_agent_account();
+    register_key(agent, addr, 0x1, four_target_policy());
+
+    // All four targets should pass
+    assert!(agent.validate_session_key_call(0x1, allowed_target()));
+    assert!(agent.validate_session_key_call(0x1, other_target()));
+    assert!(agent.validate_session_key_call(0x1, target_c()));
+    assert!(agent.validate_session_key_call(0x1, target_d()));
+
+    // A fifth address NOT in the list should fail
+    assert!(!agent.validate_session_key_call(0x1, attacker()));
+}
+
+#[test]
+fn test_validate_call_wildcard_still_works() {
+    let (agent, addr) = deploy_agent_account();
+    register_key(agent, addr, 0x1, permissive_policy());
+
+    // All-zeros = wildcard, any address should pass
+    assert!(agent.validate_session_key_call(0x1, allowed_target()));
+    assert!(agent.validate_session_key_call(0x1, other_target()));
+    assert!(agent.validate_session_key_call(0x1, target_c()));
+    assert!(agent.validate_session_key_call(0x1, target_d()));
+    assert!(agent.validate_session_key_call(0x1, attacker()));
+}
+
+#[test]
+fn test_validate_call_single_target_backward_compat() {
+    let (agent, addr) = deploy_agent_account();
+    register_key(agent, addr, 0x1, restricted_policy());
+
+    // Slot 0 = allowed_target, slots 1-3 = zero
+    // Should behave exactly like old single allowed_contract
+    assert!(agent.validate_session_key_call(0x1, allowed_target()));
+    assert!(!agent.validate_session_key_call(0x1, other_target()));
+    assert!(!agent.validate_session_key_call(0x1, target_c()));
+}
+
+#[test]
+fn test_validate_call_duplicate_slots_harmless() {
+    let (agent, addr) = deploy_agent_account();
+    let policy = SessionPolicy {
+        valid_after: 0,
+        valid_until: 999_999,
+        spending_limit: 1_000_000,
+        spending_token: token_addr(),
+        allowed_contract_0: allowed_target(),
+        allowed_contract_1: allowed_target(), // duplicate — wastes a slot but is harmless
+        allowed_contract_2: zero_addr(),
+        allowed_contract_3: zero_addr(),
+    };
+    register_key(agent, addr, 0x1, policy);
+
+    assert!(agent.validate_session_key_call(0x1, allowed_target()));
+    assert!(!agent.validate_session_key_call(0x1, other_target()));
+}
+
+#[test]
+fn test_validate_call_zero_in_middle_ignored() {
+    let (agent, addr) = deploy_agent_account();
+    let policy = SessionPolicy {
+        valid_after: 0,
+        valid_until: 999_999,
+        spending_limit: 1_000_000,
+        spending_token: token_addr(),
+        allowed_contract_0: allowed_target(),
+        allowed_contract_1: zero_addr(), // gap
+        allowed_contract_2: target_c(),
+        allowed_contract_3: zero_addr(),
+    };
+    register_key(agent, addr, 0x1, policy);
+
+    // Both non-zero slots should be allowed
+    assert!(agent.validate_session_key_call(0x1, allowed_target()));
+    assert!(agent.validate_session_key_call(0x1, target_c()));
+
+    // Others should be denied
+    assert!(!agent.validate_session_key_call(0x1, other_target()));
+    assert!(!agent.validate_session_key_call(0x1, attacker()));
+}
+
+#[test]
+fn test_get_policy_returns_all_four_targets() {
+    let (agent, addr) = deploy_agent_account();
+    let policy = four_target_policy();
+    register_key(agent, addr, 0x42, policy);
+
+    let stored = agent.get_session_key_policy(0x42);
+    assert_eq!(stored.allowed_contract_0, allowed_target());
+    assert_eq!(stored.allowed_contract_1, other_target());
+    assert_eq!(stored.allowed_contract_2, target_c());
+    assert_eq!(stored.allowed_contract_3, target_d());
 }
