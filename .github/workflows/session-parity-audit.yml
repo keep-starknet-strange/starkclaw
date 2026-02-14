@@ -1,0 +1,78 @@
+# Session Account Parity Audit
+# Runs parity script + docs lint/check. No contract or runtime changes.
+# Issue: #53
+
+name: Session Parity Audit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  session-parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: keep-starknet-strange/starknet-agentic
+          path: starknet-agentic
+          ref: main
+
+      - name: Parity preflight diagnostics
+        env:
+          UPSTREAM_SESSION_ACCOUNT_PATH: ${{ github.workspace }}/starknet-agentic/contracts/session-account
+        run: |
+          set -euxo pipefail
+          pwd
+          ls -la
+          jq --version
+          echo "UPSTREAM_SESSION_ACCOUNT_PATH=$UPSTREAM_SESSION_ACCOUNT_PATH"
+          test -d "$UPSTREAM_SESSION_ACCOUNT_PATH"
+          ls -la "$UPSTREAM_SESSION_ACCOUNT_PATH"
+          ls -la "$UPSTREAM_SESSION_ACCOUNT_PATH/src"
+
+      - name: Run parity TDD tests
+        env:
+          UPSTREAM_SESSION_ACCOUNT_PATH: ${{ github.workspace }}/starknet-agentic/contracts/session-account
+        run: |
+          chmod +x scripts/contracts/check-session-account-parity.sh
+          chmod +x scripts/contracts/test-parity-audit.sh
+          ./scripts/contracts/test-parity-audit.sh
+
+      - name: Check session-account parity
+        env:
+          UPSTREAM_SESSION_ACCOUNT_PATH: ${{ github.workspace }}/starknet-agentic/contracts/session-account
+        run: ./scripts/contracts/check-session-account-parity.sh
+
+      - name: Output parity JSON
+        if: always()
+        env:
+          UPSTREAM_SESSION_ACCOUNT_PATH: ${{ github.workspace }}/starknet-agentic/contracts/session-account
+          PARITY_OUTPUT_JSON: .parity-output/results.json
+          PARITY_OUTPUT_MD: .parity-output/report.md
+        run: |
+          mkdir -p .parity-output
+          ./scripts/contracts/check-session-account-parity.sh 2>/dev/null || true
+          cat .parity-output/results.json 2>/dev/null || echo '{}'
+
+  docs-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check security docs exist
+        run: |
+          test -f docs/security/SESSION_ACCOUNT_MIGRATION_AUDIT.md
+          test -f docs/security/PR43_PR44_REBASE_GUIDE.md
+          test -f docs/security/ACCEPTANCE_MATRIX_53.md
+          echo "Security docs OK"
+
+      - name: Lint markdown (basic)
+        run: |
+          for f in docs/security/*.md; do
+            head -1 "$f" | grep -q '^#' && echo "OK: $f" || (echo "Missing H1: $f"; exit 1)
+          done
