@@ -62,7 +62,7 @@ const session: StoredSessionKey = {
   spendingLimit: "1000",
   validAfter: 100,
   validUntil: 2000,
-  allowedContract: "0x444",
+  allowedContracts: ["0x444"],
   createdAt: 100,
 };
 
@@ -74,7 +74,7 @@ describe("session-keys migration", () => {
     vi.setSystemTime(new Date("2026-02-14T00:00:00.000Z"));
   });
 
-  it("registers session key with session-account entrypoints and spending policy", async () => {
+  it("registers session key with register_session_key entrypoint and SessionPolicy", async () => {
     hoisted.execute.mockResolvedValue({ transaction_hash: "0xdeadbeef" });
     hoisted.waitForTransaction.mockResolvedValue(undefined);
     hoisted.store.set(SESSION_KEYS_INDEX_ID, JSON.stringify([session]));
@@ -97,27 +97,22 @@ describe("session-keys migration", () => {
       calldata: string[];
     }>;
 
-    expect(calls).toHaveLength(2);
-    expect(calls[0].entrypoint).toBe("add_or_update_session_key");
+    // Single register_session_key call with SessionPolicy struct
+    expect(calls).toHaveLength(1);
+    expect(calls[0].entrypoint).toBe("register_session_key");
+    
+    // Calldata: [key, valid_after, valid_until, spending_limit.low, spending_limit.high, spending_token, allowed_contract_0...3]
     expect(calls[0].calldata[0]).toBe(session.key);
-    expect(calls[0].calldata[1]).toBe(session.validUntil.toString());
-    expect(calls[0].calldata[2]).toBe("100");
-    expect(calls[0].calldata[3]).toBe("1");
-    expect(calls[0].calldata.slice(4)).toHaveLength(1);
-    for (const selector of calls[0].calldata.slice(4)) {
-      expect(selector).toMatch(/^0x[0-9a-f]+$/);
-    }
-
-    expect(calls[1].entrypoint).toBe("set_spending_policy");
-    expect(calls[1].calldata).toEqual([
-      session.key,
-      session.tokenAddress,
-      "0x3e8",
-      "0x0",
-      "0x3e8",
-      "0x0",
-      "86400",
-    ]);
+    expect(calls[0].calldata[1]).toBe(session.validAfter.toString()); // valid_after
+    expect(calls[0].calldata[2]).toBe(session.validUntil.toString()); // valid_until
+    expect(calls[0].calldata[3]).toBe("0x3e8"); // spending_limit.low (1000)
+    expect(calls[0].calldata[4]).toBe("0x0");  // spending_limit.high
+    expect(calls[0].calldata[5]).toBe(session.tokenAddress); // spending_token
+    expect(calls[0].calldata[6]).toBe("0x444"); // allowed_contract_0
+    // Unused slots are padded with the full zero address
+    expect(calls[0].calldata[7]).toBe("0x0000000000000000000000000000000000000000000000000000000000000000");  // allowed_contract_1
+    expect(calls[0].calldata[8]).toBe("0x0000000000000000000000000000000000000000000000000000000000000000");  // allowed_contract_2
+    expect(calls[0].calldata[9]).toBe("0x0000000000000000000000000000000000000000000000000000000000000000");  // allowed_contract_3
 
     const persisted = JSON.parse(
       hoisted.store.get(SESSION_KEYS_INDEX_ID) ?? "[]"

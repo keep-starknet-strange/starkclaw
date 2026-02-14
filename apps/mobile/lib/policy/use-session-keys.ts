@@ -47,7 +47,7 @@ export type SessionKeysResult = {
     tokenAddress: string;
     spendingLimit: bigint;
     validForSeconds: number;
-    allowedContract: string;
+    allowedContracts: string[];
   }) => Promise<{ txHash: string } | null>;
 
   /** Revoke a single session key on-chain. */
@@ -125,7 +125,7 @@ export function useSessionKeys(
       tokenAddress: string;
       spendingLimit: bigint;
       validForSeconds: number;
-      allowedContract: string;
+      allowedContracts: string[];
     }): Promise<{ txHash: string } | null> => {
       if (!wallet) return null;
       setStatus("creating");
