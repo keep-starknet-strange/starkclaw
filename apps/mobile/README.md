@@ -2,7 +2,9 @@
 
 This is the Expo (React Native) app that showcases Starkclaw’s end-to-end UX.
 
-Right now it is **UI-only** and **fully mocked** (no RPC calls, no wallets, no contract interaction). The goal is to demo:
+By default it runs in **demo mode** and most user flows are mocked. Live-mode building blocks
+exist under `lib/**` (signer/runtime/contract helpers), while full screen-level wiring is still in progress.
+The goal today is to demo:
 
 - Premium onboarding (agent setup + “account creation”)
 - Trading preview + confirmations + policy checks (mocked)
@@ -84,5 +86,5 @@ UI system:
 
 ## Security Notes
 
-- This app currently runs in **demo mode** (mocked state).
+- This app currently defaults to **demo mode**.
 - Do not put private keys or real secrets in issues/screenshots/logs.
