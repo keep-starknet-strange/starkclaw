@@ -40,19 +40,17 @@ jobs:
       - name: Checkout current repo
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
 
-      - name: Validate local interop manifest (strict)
+      - name: Setup Node.js (for schema validation)
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '20'
+
+      - name: Validate local interop manifest (schema)
         run: |
           set -euo pipefail
-          test -f spec/interop-version.schema.json
-          jq -e '
-            type == "object" and
-            (keys | sort) == ["required_auth_headers","session_signature_envelope","signer_api_path","spec_version"] and
-            (.spec_version | type == "string" and test("^[0-9]+\\.[0-9]+\\.[0-9]+$")) and
-            .session_signature_envelope == "[session_pubkey,r,s,valid_until]" and
-            .signer_api_path == "/v1/sign/session-transaction" and
-            .required_auth_headers == ["X-Keyring-Timestamp","X-Keyring-Nonce","X-Keyring-Signature"]
-          ' spec/interop-version.json >/dev/null
-          jq -r '.spec_version' spec/interop-version.json
+          npx --yes ajv-cli@5 validate --strict=true \
+            -s spec/interop-version.schema.json \
+            -d spec/interop-version.json
 
       - name: Clone counterpart repos
         run: |
@@ -60,6 +58,12 @@ jobs:
           SISNA_TARGET="${SISNA_REPO:-omarespejel/SISNA}"
           git clone --depth 1 https://github.com/keep-starknet-strange/starknet-agentic.git /tmp/starknet-agentic
           git clone --depth 1 "https://github.com/${SISNA_TARGET}.git" /tmp/SISNA
+
+      - name: Enforce schema parity across repos
+        run: |
+          set -euo pipefail
+          diff -u spec/interop-version.schema.json /tmp/starknet-agentic/spec/interop-version.schema.json
+          diff -u spec/interop-version.schema.json /tmp/SISNA/spec/interop-version.schema.json
 
       - name: Compare spec version across repos
         run: |
