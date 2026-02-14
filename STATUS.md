@@ -13,7 +13,7 @@ M09 (Subset): Audit Export + Hardening
 - Expanded spec written in `spec.md`.
 - Implementation plan and milestones written in `IMPLEMENTATION_PLAN.md`.
 - M00 bootstrap: Expo app scaffold + Cairo contracts workspace + deterministic scripts + CI.
-- M01 baseline safety rails: vendored `contracts/agent-account` and wired into `scripts/contracts/test`.
+- M01 baseline safety rails: session-account lineage integration and deterministic contract checks wired into `scripts/contracts/test`.
 - M02 wallet libs: deterministic account address + RPC client with retry/fallback (exists in `apps/mobile/lib/starknet/`, not wired to UI).
 - M03 deploy libs: funding UX + deploy account transaction flow (exists in `apps/mobile/lib/wallet/`, not wired to UI).
 - M04 policy libs: create/register/revoke session keys (exists in `apps/mobile/lib/policy/`, not wired to UI).
@@ -49,11 +49,11 @@ M09 (Subset): Audit Export + Hardening
 
 ### Live Mode (When Wired, See [#2](https://github.com/keep-starknet-strange/starkclaw/issues/2))
 
-**One-time setup:** Declare `AgentAccount` class on Sepolia:
+**One-time setup:** Declare canonical session-account class on Sepolia:
 ```bash
 STARKNET_DEPLOYER_ADDRESS=0x... \
 STARKNET_DEPLOYER_PRIVATE_KEY=0x... \
-./scripts/contracts/declare-agent-account
+./scripts/contracts/declare-session-account
 ```
 
 **Manual smoke test:**
