@@ -71,6 +71,13 @@ export interface SignerClientConfig {
 
   /** Optional custom headers */
   headers?: Record<string, string>;
+
+  /**
+   * Allow insecure HTTP connections (TEST ONLY)
+   * WARNING: Never set to true in production. Only for unit tests with mock servers.
+   * @default false
+   */
+  _dangerouslyAllowInsecureHttp?: boolean;
 }
 
 /**

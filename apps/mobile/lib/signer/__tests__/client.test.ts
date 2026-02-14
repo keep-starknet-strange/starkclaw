@@ -207,7 +207,7 @@ describe('SignerClient - Error Mapping', () => {
   });
 
   it('should include correlation ID in request if provided', async () => {
-    mockFetch.mockResolvedValueOnce({
+    mockFetch.mockResolvedValue({
       ok: true,
       status: 200,
       json: async () => ({
