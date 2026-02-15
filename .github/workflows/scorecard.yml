@@ -7,9 +7,8 @@ on:
   push:
     branches: [main]
 
-permissions:
-  # Keep workflow-level permissions read-only to satisfy Scorecard workflow verification.
-  read-all: true
+# Keep workflow-level permissions read-only to satisfy Scorecard workflow verification.
+permissions: read-all
 
 jobs:
   analysis:
