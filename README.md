@@ -207,6 +207,12 @@ Starkclaw is part of a multi-repo system. Key integration surfaces:
      - `apps/mobile/lib/signer/**`
      - `keyring-proxy-signer.ts` request auth + strict response checks
      - transport hardening (TLS pinning + runtime guards)
+   - Production key-custody note:
+     - SISNA currently requires explicit
+       `KEYRING_ALLOW_INSECURE_IN_PROCESS_KEYS_IN_PRODUCTION=true`
+       when running with in-process keys in production.
+     - This is a temporary explicit-risk guard until external KMS/HSM
+       signer backend mode is available.
 
 Integration rule of thumb:
 
