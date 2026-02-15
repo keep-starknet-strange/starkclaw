@@ -30,9 +30,13 @@ jobs:
 
             function sectionText(body, heading) {
               const esc = heading.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');
-              const re = new RegExp(`^##\\s+${esc}\\s*$([\\s\\S]*?)(?=^##\\s+|$)`, 'im');
+              const re = new RegExp(`^##\\s+${esc}\\s*$`, 'im');
               const m = body.match(re);
-              return m ? m[1].trim() : '';
+              if (!m || m.index == null) return '';
+
+              const rest = body.slice(m.index + m[0].length);
+              const next = rest.search(/^##\\s+/m);
+              return (next === -1 ? rest : rest.slice(0, next)).trim();
             }
 
             function matchBoundary(files, patterns) {
