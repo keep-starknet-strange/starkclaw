@@ -80,6 +80,14 @@ Certificate pinning behavior:
 - If pinning cannot initialize in remote mode, execution fails closed.
 - Expo Go does not provide the required native module. Use a dev/prod build for remote signer testing.
 
+Server-side production guard (SISNA):
+
+- SISNA now fails production startup unless
+  `KEYRING_ALLOW_INSECURE_IN_PROCESS_KEYS_IN_PRODUCTION=true` is explicitly set
+  while in-process key custody is still in use.
+- This is an explicit temporary-risk acknowledgement until SISNA external KMS/HSM
+  signing mode is enabled.
+
 ## Error Codes
 
 ### `KeyringProxySignerError`
