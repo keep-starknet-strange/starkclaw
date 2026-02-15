@@ -8,15 +8,18 @@ on:
     branches: [main]
 
 permissions:
-  security-events: write
-  id-token: write
-  contents: read
-  actions: read
+  # Keep workflow-level permissions read-only to satisfy Scorecard workflow verification.
+  read-all: true
 
 jobs:
   analysis:
     name: Scorecard analysis
     runs-on: ubuntu-latest
+    permissions:
+      # Needed for publishing signed results.
+      id-token: write
+      # Needed only for SARIF upload step.
+      security-events: write
     steps:
       - name: Run analysis
         uses: ossf/scorecard-action@dc50aa9510b46c811795eb24b2f1ba02a914e534
