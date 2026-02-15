@@ -65,11 +65,16 @@ export function ChatDemo() {
 
         {chatState.messages.map((msg, idx) => {
           // Show tool calls after the message that triggered them
-          const toolCallsAfter = chatState.toolCalls.filter((tc) =>
-            tc.timestamp >= new Date(msg.createdAt).toISOString() &&
-            (idx === chatState.messages.length - 1 ||
-              tc.timestamp < new Date(chatState.messages[idx + 1]?.createdAt || Date.now()).toISOString())
-          );
+          // Convert timestamps to milliseconds for consistent comparison
+          const msgTime = msg.createdAt;
+          const nextMsgTime = idx < chatState.messages.length - 1 
+            ? chatState.messages[idx + 1].createdAt 
+            : Date.now();
+          
+          const toolCallsAfter = chatState.toolCalls.filter((tc) => {
+            const tcTime = new Date(tc.timestamp).getTime();
+            return tcTime >= msgTime && tcTime < nextMsgTime;
+          });
 
           return (
             <View key={msg.id} style={{ gap: 10 }}>
@@ -78,9 +83,11 @@ export function ChatDemo() {
               ) : msg.isStreaming ? (
                 <StreamingMessage
                   stream={(async function* () {
-                    // Since we already have the text in state, just yield it
-                    for (const word of msg.text.split(" ")) {
-                      yield word + " ";
+                    // Simulate streaming with delay for demo visualization
+                    const words = msg.text.split(" ");
+                    for (let i = 0; i < words.length; i++) {
+                      await new Promise((resolve) => setTimeout(resolve, 20));
+                      yield words[i] + (i < words.length - 1 ? " " : "");
                     }
                   })()}
                 />

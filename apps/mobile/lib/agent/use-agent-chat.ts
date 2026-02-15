@@ -60,6 +60,13 @@ export function useAgentChatDemo(): [AgentChatState, AgentChatActions] {
 
   const cancelRef = React.useRef(false);
 
+  // Cleanup on unmount
+  React.useEffect(() => {
+    return () => {
+      cancelRef.current = true;
+    };
+  }, []);
+
   const actions: AgentChatActions = {
     sendMessage: async (text: string) => {
       const trimmed = text.trim();
