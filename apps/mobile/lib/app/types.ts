@@ -51,6 +51,7 @@ export type AppActions = {
   setContractMode: (mode: DemoState["policy"]["contractAllowlistMode"]) => void;
   addAllowlistedRecipient: (recipientShort: string) => void;
   removeAllowlistedRecipient: (recipientShort: string) => void;
+  setAllowedTargets: (targets: string[], preset: "transfers" | "avnu_swap" | "custom") => void;
   simulateTrade: (trade: TradeDraft) => void;
   sendAgentMessage: (text: string) => void;
   approveProposal: (proposalId: string) => void;

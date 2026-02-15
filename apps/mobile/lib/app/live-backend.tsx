@@ -185,6 +185,17 @@ export function useLiveBackend(): {
           },
         }));
       },
+      setAllowedTargets: (targets, preset) => {
+        stub("setAllowedTargets");
+        setState((s) => ({
+          ...s,
+          policy: {
+            ...s.policy,
+            allowedTargets: targets,
+            allowedTargetsPreset: preset,
+          },
+        }));
+      },
       simulateTrade: () => {
         stub("simulateTrade");
       },

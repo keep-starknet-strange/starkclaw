@@ -93,6 +93,7 @@ type DemoContextValue = {
     setContractMode: (mode: DemoState["policy"]["contractAllowlistMode"]) => void;
     addAllowlistedRecipient: (recipientShort: string) => void;
     removeAllowlistedRecipient: (recipientShort: string) => void;
+    setAllowedTargets: (targets: string[], preset: DemoState["policy"]["allowedTargetsPreset"]) => void;
     simulateTrade: (trade: TradeDraft) => void;
     sendAgentMessage: (text: string) => void;
     approveProposal: (proposalId: string) => void;
@@ -306,6 +307,26 @@ export function DemoProvider(props: { children: React.ReactNode }) {
                 kind: "policy_updated",
                 title: "Recipient removed",
                 subtitle: recipientShort,
+                meta: "Policies",
+              },
+              ...s.activity,
+            ],
+          };
+        }),
+      setAllowedTargets: (targets, preset) =>
+        setState((s) => {
+          const t = nowSec();
+          const targetCount = targets.length;
+          return {
+            ...s,
+            policy: { ...s.policy, allowedTargets: targets, allowedTargetsPreset: preset },
+            activity: [
+              {
+                id: id("ac"),
+                createdAt: t,
+                kind: "policy_updated",
+                title: "Default targets updated",
+                subtitle: targetCount === 0 ? "Any contract (wildcard)" : `${targetCount} contract(s)`,
                 meta: "Policies",
               },
               ...s.activity,

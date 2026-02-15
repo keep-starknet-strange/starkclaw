@@ -20,6 +20,10 @@ export type DemoPolicy = {
   allowlistedRecipients: string[];
   contractAllowlistMode: "trusted-only" | "warn" | "open";
   emergencyLockdown: boolean;
+  /** Default allowed targets for session keys (from preset or custom). */
+  allowedTargets: string[];
+  /** Which preset was last selected by user. */
+  allowedTargetsPreset: "transfers" | "avnu_swap" | "custom";
 };
 
 export type DemoAlertPrefKey =
@@ -204,6 +208,8 @@ export function createInitialDemoState(): DemoState {
       allowlistedRecipients: allowlist,
       contractAllowlistMode: "warn",
       emergencyLockdown: false,
+      allowedTargets: [],
+      allowedTargetsPreset: "transfers",
     },
     alertPrefs: {
       spendCap: true,

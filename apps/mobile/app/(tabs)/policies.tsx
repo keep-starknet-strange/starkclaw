@@ -21,6 +21,15 @@ import { AppScreen, Row } from "@/ui/screen";
 import { formatUsd } from "@/ui/format";
 import { Body, H1, H2, Muted } from "@/ui/typography";
 
+/**
+ * Validates a Starknet contract address.
+ * Must be 0x-prefixed hex string with 40 hex chars (42 total).
+ */
+function isValidStarknetAddress(addr: string): boolean {
+  const trimmed = addr.trim();
+  return /^0x[0-9a-fA-F]{40}$/.test(trimmed);
+}
+
 function toNumberOr(n: string, fallback: number): number {
   const x = Number(n);
   return Number.isFinite(x) ? x : fallback;
@@ -35,8 +44,13 @@ export default function PoliciesScreen() {
   const [newRecipient, setNewRecipient] = React.useState("");
 
   // ── Allowed Apps state ──
-  const [selectedPreset, setSelectedPreset] = React.useState<TargetPresetId>("transfers");
-  const [customTargets, setCustomTargets] = React.useState<string[]>([]);
+  // Initialize from persisted policy state, default to transfers (wildcard)
+  const [selectedPreset, setSelectedPreset] = React.useState<TargetPresetId>(
+    state.policy.allowedTargetsPreset || "transfers"
+  );
+  const [customTargets, setCustomTargets] = React.useState<string[]>(
+    state.policy.allowedTargetsPreset === "custom" ? state.policy.allowedTargets : []
+  );
   const [newTarget, setNewTarget] = React.useState("");
 
   const resolvedTargets = React.useMemo(() => {
@@ -51,11 +65,22 @@ export default function PoliciesScreen() {
     await haptic("tap");
     const trimmed = newTarget.trim();
     if (!trimmed) return;
+    
+    // Validate address format
+    if (!isValidStarknetAddress(trimmed)) {
+      actions.triggerAlert(
+        "Invalid Address",
+        "Please enter a valid Starknet address (0x + 40 hex characters).",
+        "warn"
+      );
+      return;
+    }
+    
     if (customTargets.length >= MAX_ALLOWED_TARGETS) return;
-    if (customTargets.includes(trimmed)) return;
+    if (customTargets.some(t => t.toLowerCase() === trimmed.toLowerCase())) return;
     setCustomTargets((prev) => [...prev, trimmed]);
     setNewTarget("");
-  }, [newTarget, customTargets]);
+  }, [newTarget, customTargets, actions]);
 
   const onRemoveCustomTarget = React.useCallback(async (addr: string) => {
     await haptic("warn");
@@ -405,6 +430,8 @@ export default function PoliciesScreen() {
                 label="Save Configuration"
                 onPress={async () => {
                   await haptic("tap");
+                  // Persist the selected targets and preset to app state
+                  actions.setAllowedTargets(resolvedTargets, selectedPreset);
                   const targetCount = resolvedTargets.length;
                   const presetName = TARGET_PRESETS.find(p => p.id === selectedPreset)?.label ?? "Custom";
                   actions.triggerAlert(

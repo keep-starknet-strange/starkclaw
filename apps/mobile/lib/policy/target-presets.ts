@@ -25,7 +25,11 @@ export type TargetPreset = {
 
 // ── Well-known contract addresses ───────────────────────────────────
 
-/** AVNU Exchange (router) contract addresses by network. */
+/**
+ * AVNU Exchange (router) contract addresses by network.
+ * Note: Currently the same address works for both mainnet and sepolia.
+ * This is intentional as AVNU deploys the same contract to both networks.
+ */
 const AVNU_EXCHANGE: Record<StarknetNetworkId, string> = {
   mainnet:
     "0x04270219d365d6b017231b52e92b3fb5d7c8378b05e9abc97724537a80e93b0f",
@@ -33,7 +37,11 @@ const AVNU_EXCHANGE: Record<StarknetNetworkId, string> = {
     "0x04270219d365d6b017231b52e92b3fb5d7c8378b05e9abc97724537a80e93b0f",
 };
 
-/** Core token addresses (ETH, STRK, USDC). Duplicated from tokens.ts to avoid circular deps. */
+/**
+ * Core token addresses (ETH, STRK, USDC).
+ * Note: These duplicate values from lib/starknet/tokens.ts to avoid circular dependencies.
+ * In a production app, these should be imported from a shared source.
+ */
 const TOKEN_ADDRESSES: Record<StarknetNetworkId, Record<string, string>> = {
   sepolia: {
     ETH: "0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
