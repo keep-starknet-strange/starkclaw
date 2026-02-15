@@ -95,21 +95,34 @@ if (reanimated && worklets) {
 }
 
 // 3) Guard against known-breaking noble subpath imports (noble v2 moved sha256 into sha2).
-const banned = [
-  "@noble/hashes/sha256",
-  "@noble/hashes/sha256.js",
-  "@noble/hashes/utils",
-  "@noble/hashes/hmac",
+const importGuards = [
+  {
+    re: /from\s+["']@noble\/hashes\/sha256(?:\.js)?["']/,
+    msg: "noble v2 moved sha256 into @noble/hashes/sha2.js (do not import sha256 directly)",
+  },
+  {
+    re: /from\s+["']@noble\/hashes\/hmac["']/,
+    msg: "use @noble/hashes/hmac.js (explicit .js export required by noble v2)",
+  },
+  {
+    re: /from\s+["']@noble\/hashes\/utils["']/,
+    msg: "use @noble/hashes/utils.js (explicit .js export required by noble v2)",
+  },
+  {
+    re: /from\s+["']@noble\/hashes\/sha2["']/,
+    msg: "use @noble/hashes/sha2.js (explicit .js export required by noble v2)",
+  },
 ];
 const files = walk(path.join(repoRoot, "apps/mobile"), new Set([".ts", ".tsx"]));
 for (const file of files) {
   const src = fs.readFileSync(file, "utf8");
-  for (const pat of banned) {
-    if (src.includes(pat)) {
-      fail(`found banned import '${pat}' in ${path.relative(repoRoot, file)}`);
+  for (const g of importGuards) {
+    if (g.re.test(src)) {
+      fail(
+        `bad noble import in ${path.relative(repoRoot, file)}: ${g.msg}`
+      );
     }
   }
 }
 
 console.log("dependency-coherence: ok");
-
