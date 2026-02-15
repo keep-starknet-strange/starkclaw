@@ -1,6 +1,13 @@
 use starknet::{ClassHash, ContractAddress};
 use core::byte_array::ByteArray;
 
+/// Session policy for a session key.
+/// Uses a bounded, fixed-size list of 4 allowed target addresses.
+/// This strikes a balance between:
+/// - Storage efficiency (4 slots = predictable gas costs)
+/// - UX flexibility (covers common DeFi flows: token + router + 2 more)
+/// - Simplicity (avoids dynamic allocation or Merkle proofs)
+/// Empty/unused slots are zero; all zeros = wildcard (any contract allowed).
 #[derive(Drop, Serde, Copy, starknet::Store)]
 pub struct SessionPolicy {
     pub valid_after: u64,
