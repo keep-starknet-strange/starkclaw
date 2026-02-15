@@ -1,8 +1,20 @@
+## Cross-repo boundary awareness
+
+Boundary change: no
+
+Counterpart repos:
+- keep-starknet-strange/starknet-agentic: Not impacted
+- omarespejel/SISNA: Not impacted
+
 ## What changed
 
 <!-- Describe the changes. Link the issue this addresses. -->
 
 Closes #
+
+## Spec impact
+
+Spec impact: none
 
 ## How to verify
 
