@@ -7,6 +7,17 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
+    groups:
+      react-trio:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "react-test-renderer"
+          - "@types/react"
+      reanimated-worklets:
+        patterns:
+          - "react-native-reanimated"
+          - "react-native-worklets"
 
   - package-ecosystem: "npm"
     directory: "/contracts/agent-account/scripts"

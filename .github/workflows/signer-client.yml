@@ -17,6 +17,11 @@ on:
       - 'apps/mobile/lib/signer/**'
       - 'scripts/test/signer-client.sh'
       - '.github/workflows/signer-client.yml'
+  merge_group:
+    paths:
+      - 'apps/mobile/lib/signer/**'
+      - 'scripts/test/signer-client.sh'
+      - '.github/workflows/signer-client.yml'
 
 permissions:
   contents: read

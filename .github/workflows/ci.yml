@@ -4,11 +4,26 @@ on:
   push:
     branches: [main]
   pull_request:
+  merge_group:
 
 permissions:
   contents: read
 
 jobs:
+  dependency-coherence:
+    name: Dependency Coherence
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+
+      - name: Dependency coherence gate
+        run: node scripts/ci/dependency-coherence.mjs
+
   check:
     runs-on: ubuntu-latest
     steps:
