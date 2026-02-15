@@ -36,7 +36,7 @@
     "expo-splash-screen": "~31.0.13",
     "expo-status-bar": "~3.0.9",
     "expo-web-browser": "~15.0.10",
-    "react": "19.1.0",
+    "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-native": "0.81.5",
     "react-native-reanimated": "~4.2.1",
@@ -44,16 +44,16 @@
     "react-native-screens": "~4.16.0",
     "react-native-ssl-public-key-pinning": "^1.2.6",
     "react-native-web": "~0.21.0",
-    "react-native-worklets": "0.5.1",
+    "react-native-worklets": "0.7.3",
     "starknet": "^9.2.1"
   },
   "devDependencies": {
-    "@types/react": "~19.1.0",
+    "@types/react": "~19.2.0",
     "@vitest/coverage-v8": "^2.1.8",
     "@vitest/ui": "^2.1.8",
     "eslint": "^10.0.0",
     "eslint-config-expo": "~10.0.0",
-    "react-test-renderer": "19.1.0",
+    "react-test-renderer": "19.2.4",
     "typescript": "~5.9.2",
     "vitest": "^2.1.8"
   },
