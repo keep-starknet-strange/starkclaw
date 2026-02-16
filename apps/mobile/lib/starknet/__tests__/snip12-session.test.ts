@@ -10,7 +10,6 @@ import {
   buildRevokeSessionKeyTypedData,
   buildEmergencyRevokeAllTypedData,
   signerMetadata,
-  type SignerMode,
 } from "../snip12-session";
 
 // ── Fixtures ────────────────────────────────────────────────────────
@@ -29,7 +28,6 @@ describe("buildRegisterSessionKeyTypedData", () => {
   const params = {
     chainId: CHAIN_ID,
     accountAddress: ACCOUNT,
-    mode: "v2" as SignerMode,
     sessionKey: SESSION_KEY,
     validAfter: 1000,
     validUntil: 2000,
@@ -54,11 +52,6 @@ describe("buildRegisterSessionKeyTypedData", () => {
     expect(td.domain.name).toBe("Starkclaw");
     expect(td.domain.chainId).toBe(CHAIN_ID);
     expect(td.domain.verifyingContract).toBe(ACCOUNT);
-  });
-
-  test("domain uses v1 version when mode is v1", () => {
-    const td = buildRegisterSessionKeyTypedData({ ...params, mode: "v1" });
-    expect(td.domain.version).toBe("1");
   });
 
   test("primaryType is RegisterSessionKey", () => {
@@ -114,7 +107,6 @@ describe("buildRevokeSessionKeyTypedData", () => {
   const params = {
     chainId: CHAIN_ID,
     accountAddress: ACCOUNT,
-    mode: "v2" as SignerMode,
     sessionKey: SESSION_KEY,
   };
 
@@ -148,7 +140,6 @@ describe("buildEmergencyRevokeAllTypedData", () => {
   const params = {
     chainId: CHAIN_ID,
     accountAddress: ACCOUNT,
-    mode: "v2" as SignerMode,
     nonce: 42,
     timestamp: 1700000000,
   };
@@ -180,42 +171,18 @@ describe("buildEmergencyRevokeAllTypedData", () => {
 // ── Signer Metadata ─────────────────────────────────────────────────
 
 describe("signerMetadata", () => {
-  test("v1 mode returns correct metadata", () => {
-    const meta = signerMetadata("v1");
-    expect(meta.signature_mode).toBe("v1");
-    expect(meta.spec_version).toBe("1");
-    expect(meta.domain_name).toBe("Starkclaw");
-  });
-
-  test("v2 mode returns correct metadata", () => {
-    const meta = signerMetadata("v2");
+  test("returns v2 metadata", () => {
+    const meta = signerMetadata();
     expect(meta.signature_mode).toBe("v2");
     expect(meta.spec_version).toBe("2");
     expect(meta.domain_name).toBe("Starkclaw");
   });
 });
 
-// ── Cross-mode determinism ──────────────────────────────────────────
-
-describe("cross-mode determinism", () => {
-  test("v1 and v2 produce different typed data (version differs)", () => {
-    const base = {
-      chainId: CHAIN_ID,
-      accountAddress: ACCOUNT,
-      sessionKey: SESSION_KEY,
-    };
-    const v1 = buildRevokeSessionKeyTypedData({ ...base, mode: "v1" });
-    const v2 = buildRevokeSessionKeyTypedData({ ...base, mode: "v2" });
-
-    expect(v1.domain.version).toBe("1");
-    expect(v2.domain.version).toBe("2");
-    expect(JSON.stringify(v1)).not.toBe(JSON.stringify(v2));
-  });
-
+describe("determinism", () => {
   test("same mode, different accounts produce different typed data", () => {
     const base = {
       chainId: CHAIN_ID,
-      mode: "v2" as SignerMode,
       sessionKey: SESSION_KEY,
     };
     const a = buildRevokeSessionKeyTypedData({

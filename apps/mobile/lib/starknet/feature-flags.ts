@@ -1,8 +1,8 @@
 /**
  * feature-flags — Runtime feature flags with SecureStore persistence.
  *
- * Flags default to off and must be explicitly enabled. Changes take
- * effect immediately (no restart needed).
+ * Flags are runtime-configurable, except session_signer_v2 which is
+ * enforced on for strict SNIP-12-only signing.
  */
 
 import { secureGet, secureSet } from "../storage/secure-store";
@@ -17,7 +17,7 @@ export type FeatureFlagId =
 type FlagDefaults = Record<FeatureFlagId, boolean>;
 
 const DEFAULTS: FlagDefaults = {
-  session_signer_v2: false,
+  session_signer_v2: true,
 };
 
 // ── In-memory cache ─────────────────────────────────────────────────
@@ -49,13 +49,14 @@ async function saveFlags(flags: Record<string, boolean>): Promise<void> {
 // ── Public API ──────────────────────────────────────────────────────
 
 export async function isEnabled(flag: FeatureFlagId): Promise<boolean> {
+  if (flag === "session_signer_v2") return true;
   const flags = await loadFlags();
   return flags[flag] ?? DEFAULTS[flag] ?? false;
 }
 
 export async function setFlag(flag: FeatureFlagId, enabled: boolean): Promise<void> {
   const flags = await loadFlags();
-  flags[flag] = enabled;
+  flags[flag] = flag === "session_signer_v2" ? true : enabled;
   await saveFlags(flags);
 }
 

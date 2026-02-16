@@ -11,10 +11,9 @@ import { hash, type TypedData } from "starknet";
 // ── Constants ───────────────────────────────────────────────────────
 
 const DOMAIN_NAME = "Starkclaw";
-const SPEC_VERSION_V1 = "1";
 const SPEC_VERSION_V2 = "2";
 
-export type SignerMode = "v1" | "v2";
+export type SignerMode = "v2";
 
 // ── SNIP-12 Domain ──────────────────────────────────────────────────
 
@@ -28,11 +27,10 @@ export type SessionDomain = {
 function buildDomain(params: {
   chainId: string;
   accountAddress: string;
-  mode: SignerMode;
 }): SessionDomain {
   return {
     name: DOMAIN_NAME,
-    version: params.mode === "v2" ? SPEC_VERSION_V2 : SPEC_VERSION_V1,
+    version: SPEC_VERSION_V2,
     chainId: params.chainId,
     verifyingContract: params.accountAddress,
   };
@@ -87,7 +85,6 @@ export type RegisterSessionKeyMessage = {
 export function buildRegisterSessionKeyTypedData(params: {
   chainId: string;
   accountAddress: string;
-  mode: SignerMode;
   sessionKey: string;
   validAfter: number;
   validUntil: number;
@@ -102,7 +99,6 @@ export function buildRegisterSessionKeyTypedData(params: {
   const domain = buildDomain({
     chainId: params.chainId,
     accountAddress: params.accountAddress,
-    mode: params.mode,
   });
 
   const message: RegisterSessionKeyMessage = {
@@ -136,13 +132,11 @@ export type RevokeSessionKeyMessage = {
 export function buildRevokeSessionKeyTypedData(params: {
   chainId: string;
   accountAddress: string;
-  mode: SignerMode;
   sessionKey: string;
 }): TypedData {
   const domain = buildDomain({
     chainId: params.chainId,
     accountAddress: params.accountAddress,
-    mode: params.mode,
   });
 
   const message: RevokeSessionKeyMessage = {
@@ -168,14 +162,12 @@ export type EmergencyRevokeAllMessage = {
 export function buildEmergencyRevokeAllTypedData(params: {
   chainId: string;
   accountAddress: string;
-  mode: SignerMode;
   nonce: number;
   timestamp: number;
 }): TypedData {
   const domain = buildDomain({
     chainId: params.chainId,
     accountAddress: params.accountAddress,
-    mode: params.mode,
   });
 
   const message: EmergencyRevokeAllMessage = {
@@ -222,10 +214,10 @@ export type SignerMetadata = {
   domain_name: string;
 };
 
-export function signerMetadata(mode: SignerMode): SignerMetadata {
+export function signerMetadata(): SignerMetadata {
   return {
-    signature_mode: mode,
-    spec_version: mode === "v2" ? SPEC_VERSION_V2 : SPEC_VERSION_V1,
+    signature_mode: "v2",
+    spec_version: SPEC_VERSION_V2,
     domain_name: DOMAIN_NAME,
   };
 }
