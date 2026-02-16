@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import Animated, { FadeInDown } from "react-native-reanimated";
 
 import { useApp } from "@/lib/app/app-provider";
+import { type DemoBalance } from "@/lib/demo/demo-state";
 import { GhostButton, IconButton } from "@/ui/buttons";
 import { AppIcon } from "@/ui/app-icon";
 import { Badge } from "@/ui/badge";
@@ -16,23 +17,13 @@ import { AppScreen, Row } from "@/ui/screen";
 import { formatPct, formatUsd } from "@/ui/format";
 import { Body, Display, H2, Metric, Mono, Muted } from "@/ui/typography";
 
-interface BalanceWithRaw {
-  amount: number;
-  amountRaw?: string;
-  amountDisplay?: string;
-  usdPrice: number;
-  change24hPct: number;
-  symbol: string;
-  name: string;
-}
-
 function toNumberOrZero(value: string | undefined): number {
   if (!value) return 0;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function portfolioTotalUsd(balances: BalanceWithRaw[]): number {
+function portfolioTotalUsd(balances: DemoBalance[]): number {
   return balances.reduce((sum, b) => sum + toNumberOrZero(b.amountRaw) * b.usdPrice, 0);
 }
 
