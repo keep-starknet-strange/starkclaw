@@ -37,6 +37,35 @@ function shortenHex(input: string): string {
   return `${s.slice(0, 10)}…${s.slice(-6)}`;
 }
 
+/**
+ * Parse amount text to base units (BigInt) without IEEE-754 precision loss.
+ * Validates: non-empty, non-negative, at most maxDecimals fractional digits.
+ */
+function parseAmountToBigInt(amountText: string, decimals: number): bigint | null {
+  const trimmed = amountText.trim();
+  if (!trimmed) return null;
+  
+  // Check for valid number format
+  if (!/^\d*\.?\d*$/.test(trimmed)) return null;
+  if (trimmed === ".") return null;
+  
+  const parts = trimmed.split(".");
+  const integerPart = parts[0] || "0";
+  const fractionalPart = parts[1] || "";
+  
+  // Check fractional digits limit
+  if (fractionalPart.length > decimals) return null;
+  
+  // Pad fractional part to required decimals
+  const paddedFraction = fractionalPart.padEnd(decimals, "0");
+  
+  // Combine and convert to BigInt (remove leading zeros)
+  const combined = integerPart + paddedFraction;
+  const trimmedCombined = combined.replace(/^0+/, "") || "0";
+  
+  return BigInt(trimmedCombined);
+}
+
 export default function TradeScreen() {
   const t = useAppTheme();
   const { state, actions, mode } = useApp();
@@ -44,14 +73,31 @@ export default function TradeScreen() {
 
   // Live mode: load wallet and swap hook
   const [wallet, setWallet] = React.useState<WalletSnapshot | null>(null);
+  const [inFlightAction, setInFlightAction] = React.useState<"quote" | "confirm" | null>(null);
   const swap = useSwap(isLive ? wallet : null);
 
-  // Load wallet on mount for live mode
+  // Load wallet on mount for live mode with proper cleanup
   React.useEffect(() => {
-    if (isLive) {
-      loadWallet().then(setWallet);
+    if (!isLive) {
+      setWallet(null);
+      return;
     }
-  }, [isLive]);
+
+    let mounted = true;
+    loadWallet()
+      .then((result) => {
+        if (mounted) setWallet(result);
+      })
+      .catch((err) => {
+        if (mounted) {
+          actions.triggerAlert("Failed to Load Wallet", err?.message ?? "Unknown error", "warn");
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [isLive, actions]);
 
   const [from, setFrom] = React.useState<Sym>("STRK");
   const [to, setTo] = React.useState<Sym>("USDC");
@@ -86,14 +132,43 @@ export default function TradeScreen() {
             ? `Exceeds per-tx cap (${formatUsd(perTxCap)}).`
             : null;
 
+  // React to swap state changes (avoids stale closure)
+  React.useEffect(() => {
+    if (!inFlightAction) return;
+
+    if (inFlightAction === "quote") {
+      if (swap.error) {
+        actions.triggerAlert("Quote Failed", swap.error, "warn");
+        setInFlightAction(null);
+      } else if (swap.phase === "preview") {
+        setPreviewOpen(true);
+        setInFlightAction(null);
+      }
+    } else if (inFlightAction === "confirm") {
+      setPreviewOpen(false);
+      if (swap.error) {
+        actions.triggerAlert("Swap Failed", swap.error, "danger");
+      } else if (swap.result) {
+        actions.triggerAlert(
+          "Swap Submitted",
+          `TX: ${shortenHex(swap.result.txHash)}`,
+          "info"
+        );
+      }
+      setInFlightAction(null);
+    }
+  }, [inFlightAction, swap.phase, swap.error, swap.result, actions]);
+
   // Live mode quote handler
   const handlePreview = React.useCallback(async () => {
+    // Policy check ALWAYS runs first - before demo/live split
+    if (blocked) {
+      actions.triggerAlert("Trade blocked", reason ?? "Policy denied this trade preview.", "warn");
+      return;
+    }
+
     if (!isLive || !wallet) {
-      // Demo mode
-      if (blocked) {
-        actions.triggerAlert("Trade blocked", reason ?? "Policy denied this trade preview.", "warn");
-        return;
-      }
+      // Demo mode - allowed by policy
       setPreviewOpen(true);
       return;
     }
@@ -106,34 +181,35 @@ export default function TradeScreen() {
       return;
     }
 
-    // Parse amount to base units
-    const amountNum = toNumberOr(amountText, 0);
-    if (amountNum <= 0) {
+    // Parse amount to base units without IEEE-754 precision loss
+    const sellAmount = parseAmountToBigInt(amountText, sellToken.decimals);
+    if (sellAmount === null || sellAmount <= 0n) {
       actions.triggerAlert("Invalid Amount", "Enter a valid amount.", "warn");
       return;
     }
 
-    const sellAmount = BigInt(Math.floor(amountNum * 10 ** sellToken.decimals));
-
     await haptic("tap");
+    setInFlightAction("quote");
     await swap.quote({
       sellToken,
       buyToken,
       sellAmount,
       slippage: slippage / 100,
     });
-
-    if (swap.error) {
-      actions.triggerAlert("Quote Failed", swap.error, "warn");
-    } else if (swap.phase === "preview") {
-      setPreviewOpen(true);
-    }
+    // State handling done in useEffect
   }, [isLive, wallet, from, to, amountText, slippage, blocked, reason, actions, swap]);
 
   // Live mode execute handler
   const handleExecute = React.useCallback(async () => {
+    // Policy check ALWAYS runs first - before demo/live split
+    if (blocked) {
+      actions.triggerAlert("Trade blocked", reason ?? "Policy denied this trade.", "warn");
+      setPreviewOpen(false);
+      return;
+    }
+
     if (!isLive) {
-      // Demo mode
+      // Demo mode - allowed by policy
       await haptic("success");
       actions.simulateTrade({ from, to, amount });
       setPreviewOpen(false);
@@ -141,19 +217,10 @@ export default function TradeScreen() {
     }
 
     // Live mode - execute swap
+    setInFlightAction("confirm");
     await swap.confirm();
-    setPreviewOpen(false);
-
-    if (swap.error) {
-      actions.triggerAlert("Swap Failed", swap.error, "danger");
-    } else if (swap.result) {
-      actions.triggerAlert(
-        "Swap Submitted",
-        `TX: ${shortenHex(swap.result.txHash)}`,
-        "info"
-      );
-    }
-  }, [isLive, from, to, amount, actions, swap]);
+    // State handling done in useEffect
+  }, [isLive, from, to, amount, blocked, reason, actions, swap]);
 
   return (
     <AppScreen>
@@ -332,7 +399,9 @@ export default function TradeScreen() {
                   <View style={{ gap: 10 }}>
                     <Row>
                       <Muted>Policy</Muted>
-                      <Body style={{ fontFamily: t.font.bodyMedium, color: t.colors.good }}>Allowed</Body>
+                      <Body style={{ fontFamily: t.font.bodyMedium, color: blocked ? t.colors.warn : t.colors.good }}>
+                        {blocked ? "Denied" : "Allowed"}
+                      </Body>
                     </Row>
                     <Row>
                       <Muted>Contract trust</Muted>
