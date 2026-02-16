@@ -5,14 +5,18 @@ import { LinearGradient } from "expo-linear-gradient";
 
 import { useApp } from "@/lib/app/app-provider";
 import { requireOwnerAuth } from "@/lib/security/owner-auth";
+import { loadWallet, type WalletSnapshot } from "@/lib/wallet/wallet";
+import { useSessionKeys } from "@/lib/policy/use-session-keys";
 import {
   TARGET_PRESETS,
   MAX_ALLOWED_TARGETS,
   labelForAddress,
   type TargetPresetId,
 } from "@/lib/policy/target-presets";
+import { TOKENS } from "@/lib/starknet/tokens";
 import { GhostButton, PrimaryButton } from "@/ui/buttons";
 import { AppIcon } from "@/ui/app-icon";
+import { Badge } from "@/ui/badge";
 import { Chip } from "@/ui/chip";
 import { GlassCard } from "@/ui/glass-card";
 import { haptic } from "@/ui/haptics";
@@ -35,13 +39,39 @@ function toNumberOr(n: string, fallback: number): number {
   return Number.isFinite(x) ? x : fallback;
 }
 
+function shortenHex(input: string): string {
+  const s = input.trim();
+  if (!s) return s;
+  if (s.length <= 18) return s;
+  if (!s.startsWith("0x")) return s.slice(0, 16) + "…";
+  return `${s.slice(0, 10)}…${s.slice(-6)}`;
+}
+
 export default function PoliciesScreen() {
   const t = useAppTheme();
-  const { state, actions } = useApp();
+  const { state, actions, mode } = useApp();
+  const isLive = mode === "live";
 
   const [dailyText, setDailyText] = React.useState(String(state.policy.dailySpendCapUsd));
   const [perTxText, setPerTxText] = React.useState(String(state.policy.perTxCapUsd));
   const [newRecipient, setNewRecipient] = React.useState("");
+
+  // Live mode: load wallet and session keys
+  const [wallet, setWallet] = React.useState<WalletSnapshot | null>(null);
+  const sessionKeysResult = useSessionKeys(isLive ? wallet : null);
+
+  // Load wallet on mount for live mode
+  React.useEffect(() => {
+    if (isLive) {
+      loadWallet().then(setWallet);
+    }
+  }, [isLive]);
+
+  // ── Create Session Key state ──
+  const [showCreateKey, setShowCreateKey] = React.useState(false);
+  const [newKeyToken, setNewKeyToken] = React.useState("ETH");
+  const [newKeySpendLimit, setNewKeySpendLimit] = React.useState("100");
+  const [newKeyExpiry, setNewKeyExpiry] = React.useState("86400"); // 24 hours in seconds
 
   // ── Allowed Apps state ──
   // Initialize from persisted policy state, default to transfers (wildcard)
@@ -103,12 +133,279 @@ export default function PoliciesScreen() {
     setNewRecipient("");
   }, [actions, newRecipient]);
 
+  // Create session key handler
+  const onCreateSessionKey = React.useCallback(async () => {
+    if (!wallet) {
+      actions.triggerAlert("No Wallet", "Please create a wallet first in live mode.", "warn");
+      return;
+    }
+
+    await haptic("tap");
+    
+    const token = TOKENS.find(t => t.symbol === newKeyToken);
+    if (!token) {
+      actions.triggerAlert("Invalid Token", "Please select a valid token.", "warn");
+      return;
+    }
+
+    const spendLimit = BigInt(Math.floor(Number(newKeySpendLimit) * (10 ** token.decimals)));
+    const expiry = Number(newKeyExpiry) || 86400;
+    const targets = resolvedTargets;
+
+    const result = await sessionKeysResult.create({
+      tokenSymbol: newKeyToken,
+      tokenAddress: token.addressByNetwork[wallet.networkId],
+      spendingLimit: spendLimit,
+      validForSeconds: expiry,
+      allowedContracts: targets,
+    });
+
+    if (result) {
+      actions.triggerAlert(
+        "Session Key Created",
+        `Key created. TX: ${shortenHex(result.txHash)}`,
+        "info"
+      );
+      setShowCreateKey(false);
+    } else {
+      actions.triggerAlert(
+        "Session Key Failed",
+        sessionKeysResult.error || "Failed to create session key.",
+        "danger"
+      );
+    }
+  }, [wallet, newKeyToken, newKeySpendLimit, newKeyExpiry, resolvedTargets, sessionKeysResult, actions]);
+
+  // Revoke single key handler
+  const onRevokeKey = React.useCallback(async (publicKey: string) => {
+    if (!wallet) return;
+    
+    await haptic("warn");
+    
+    const result = await sessionKeysResult.revoke(publicKey);
+    
+    if (result) {
+      actions.triggerAlert(
+        "Session Key Revoked",
+        `Key revoked. TX: ${shortenHex(result.txHash)}`,
+        "info"
+      );
+    } else {
+      actions.triggerAlert(
+        "Revoke Failed",
+        sessionKeysResult.error || "Failed to revoke session key.",
+        "danger"
+      );
+    }
+  }, [wallet, sessionKeysResult, actions]);
+
+  // Emergency revoke all handler
+  const onEmergencyRevokeAll = React.useCallback(async () => {
+    if (!wallet) return;
+    
+    try {
+      await requireOwnerAuth({ reason: "Emergency revoke all session keys" });
+    } catch {
+      actions.triggerAlert("Auth Failed", "Owner authentication required.", "warn");
+      return;
+    }
+
+    await haptic("warn");
+    
+    const result = await sessionKeysResult.revokeAll();
+    
+    if (result) {
+      actions.triggerAlert(
+        "Emergency Revoke",
+        `All keys revoked. TX: ${shortenHex(result.txHash)}`,
+        "danger"
+      );
+    } else {
+      actions.triggerAlert(
+        "Emergency Revoke Failed",
+        sessionKeysResult.error || "Failed to revoke all keys.",
+        "danger"
+      );
+    }
+  }, [wallet, sessionKeysResult, actions]);
+
+  // Save allowed targets configuration
+  const onSaveConfiguration = React.useCallback(async () => {
+    await haptic("tap");
+    actions.setAllowedTargets(resolvedTargets, selectedPreset);
+    const targetCount = resolvedTargets.length;
+    const presetName = TARGET_PRESETS.find(p => p.id === selectedPreset)?.label ?? "Custom";
+    actions.triggerAlert(
+      "Configuration Saved",
+      `Default targets set to "${presetName}" (${targetCount === 0 ? "any contract" : `${targetCount} contract(s)`})`,
+      "info"
+    );
+  }, [actions, resolvedTargets, selectedPreset]);
+
   return (
     <AppScreen>
       <Animated.View entering={FadeInDown.duration(420)} style={{ gap: 8 }}>
-        <Muted>Policies</Muted>
-        <H1>Define the boundaries</H1>
+        <Row>
+          <View>
+            <Muted>Policies</Muted>
+            <H1>Define the boundaries</H1>
+          </View>
+          {isLive && <Badge label="Live" tone="good" />}
+        </Row>
       </Animated.View>
+
+      {/* Live Mode: Session Keys Card */}
+      {isLive && (
+        <Animated.View entering={FadeInDown.delay(40).duration(420)}>
+          <GlassCard>
+            <View style={{ gap: 12 }}>
+              <Row>
+                <H2>Session Keys</H2>
+                <Muted>{sessionKeysResult.keys.length} active</Muted>
+              </Row>
+
+              {/* Session Keys List */}
+              {sessionKeysResult.keys.length > 0 ? (
+                <View style={{ gap: 8 }}>
+                  {sessionKeysResult.keys.map((key) => (
+                    <View key={key.key} style={{ 
+                      padding: 10, 
+                      borderRadius: t.radius.md,
+                      backgroundColor: t.scheme === "dark" ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)"
+                    }}>
+                      <Row>
+                        <View style={{ gap: 2 }}>
+                          <Body style={{ fontFamily: t.font.bodyMedium, fontSize: 13 }}>
+                            {key.tokenSymbol} • {formatUsd(Number(key.spendingLimit) / 1e18)}
+                          </Body>
+                          <Muted style={{ fontSize: 11 }}>
+                            {shortenHex(key.key)} • {key.onchainValid === null ? "Checking..." : key.onchainValid ? "Valid" : "Invalid"}
+                          </Muted>
+                        </View>
+                        <Pressable
+                          onPress={() => onRevokeKey(key.key)}
+                          disabled={sessionKeysResult.status === "revoking"}
+                          style={({ pressed }) => ({
+                            paddingVertical: 6,
+                            paddingHorizontal: 10,
+                            borderRadius: 999,
+                            borderWidth: 1,
+                            borderColor: "rgba(255,69,58,0.30)",
+                            backgroundColor: "rgba(255,69,58,0.10)",
+                            opacity: pressed ? 0.85 : 1,
+                          })}
+                        >
+                          <Body style={{ fontFamily: t.font.bodyMedium, fontSize: 12, color: t.colors.bad }}>
+                            Revoke
+                          </Body>
+                        </Pressable>
+                      </Row>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <Muted>No session keys. Create one to allow agent actions.</Muted>
+              )}
+
+              {/* Create New Key Button */}
+              {!showCreateKey ? (
+                <PrimaryButton
+                  label="Create Session Key"
+                  onPress={() => setShowCreateKey(true)}
+                />
+              ) : (
+                <View style={{ gap: 10 }}>
+                  <Muted>New Session Key:</Muted>
+                  
+                  {/* Token selector */}
+                  <View style={{ gap: 4 }}>
+                    <Muted style={{ fontSize: 12 }}>Token</Muted>
+                    <View style={{ flexDirection: "row", gap: 8 }}>
+                      {TOKENS.map(token => (
+                        <Chip
+                          key={token.symbol}
+                          label={token.symbol}
+                          onPress={() => setNewKeyToken(token.symbol)}
+                        />
+                      ))}
+                    </View>
+                  </View>
+
+                  {/* Spend limit */}
+                  <TextInput
+                    value={newKeySpendLimit}
+                    onChangeText={setNewKeySpendLimit}
+                    keyboardType="decimal-pad"
+                    placeholder="Spend limit (USD)"
+                    style={{
+                      paddingVertical: 10,
+                      paddingHorizontal: 12,
+                      borderRadius: t.radius.md,
+                      borderWidth: 1,
+                      borderColor: t.colors.glassBorder,
+                      backgroundColor: t.scheme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.6)",
+                      color: t.colors.text,
+                      fontFamily: t.font.body,
+                    }}
+                  />
+
+                  {/* Expiry */}
+                  <TextInput
+                    value={newKeyExpiry}
+                    onChangeText={setNewKeyExpiry}
+                    keyboardType="number-pad"
+                    placeholder="Expiry (seconds)"
+                    style={{
+                      paddingVertical: 10,
+                      paddingHorizontal: 12,
+                      borderRadius: t.radius.md,
+                      borderWidth: 1,
+                      borderColor: t.colors.glassBorder,
+                      backgroundColor: t.scheme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.6)",
+                      color: t.colors.text,
+                      fontFamily: t.font.body,
+                    }}
+                  />
+                  <Muted style={{ fontSize: 11 }}>86400 = 24 hours</Muted>
+
+                  <Row style={{ gap: 10 }}>
+                    <PrimaryButton
+                      label="Create"
+                      onPress={onCreateSessionKey}
+                      disabled={sessionKeysResult.status === "creating"}
+                    />
+                    <GhostButton
+                      label="Cancel"
+                      onPress={() => setShowCreateKey(false)}
+                    />
+                  </Row>
+                </View>
+              )}
+
+              {/* Emergency Revoke All */}
+              {sessionKeysResult.keys.length > 0 && (
+                <Pressable
+                  onPress={onEmergencyRevokeAll}
+                  disabled={sessionKeysResult.status === "emergency"}
+                  style={({ pressed }) => ({
+                    paddingVertical: 10,
+                    paddingHorizontal: 12,
+                    borderRadius: t.radius.md,
+                    borderWidth: 1,
+                    borderColor: "rgba(255,69,58,0.40)",
+                    backgroundColor: "rgba(255,69,58,0.10)",
+                    opacity: pressed ? 0.85 : 1,
+                  })}
+                >
+                  <Body style={{ fontFamily: t.font.bodyMedium, color: t.colors.bad, textAlign: "center" }}>
+                    🚨 Emergency Revoke All
+                  </Body>
+                </Pressable>
+              )}
+            </View>
+          </GlassCard>
+        </Animated.View>
+      )}
 
       <Animated.View entering={FadeInDown.delay(80).duration(420)}>
         <GlassCard>
@@ -428,18 +725,7 @@ export default function PoliciesScreen() {
             <Row style={{ gap: 10, marginTop: 8 }}>
               <PrimaryButton
                 label="Save Configuration"
-                onPress={async () => {
-                  await haptic("tap");
-                  // Persist the selected targets and preset to app state
-                  actions.setAllowedTargets(resolvedTargets, selectedPreset);
-                  const targetCount = resolvedTargets.length;
-                  const presetName = TARGET_PRESETS.find(p => p.id === selectedPreset)?.label ?? "Custom";
-                  actions.triggerAlert(
-                    "Configuration Saved",
-                    `Default targets set to "${presetName}" (${targetCount === 0 ? "any contract" : `${targetCount} contract(s)`})`,
-                    "info"
-                  );
-                }}
+                onPress={onSaveConfiguration}
                 style={{ flex: 1 }}
               />
             </Row>
