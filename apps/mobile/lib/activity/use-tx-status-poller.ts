@@ -107,7 +107,6 @@ export function useTxStatusPoller(isLive: boolean): void {
   const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const appStateRef = React.useRef<AppStateStatus>(AppState.currentState);
   const isPollingRef = React.useRef(false);
-  const cancelledRef = React.useRef(false);
 
   // Load wallet once
   React.useEffect(() => {
@@ -145,16 +144,19 @@ export function useTxStatusPoller(isLive: boolean): void {
       return;
     }
 
+    // Local cancellation flag - reset on each effect run
+    let cancelled = false;
+
     const poll = async () => {
       // Skip if cancelled or already polling
-      if (cancelledRef.current || isPollingRef.current) {
+      if (cancelled || isPollingRef.current) {
         return;
       }
       
       // Skip if app is backgrounded
       if (appStateRef.current.match(/inactive|background/)) {
         // Schedule next poll if not cancelled and still in live mode
-        if (!cancelledRef.current && isLive) {
+        if (!cancelled && isLive) {
           timeoutRef.current = setTimeout(poll, POLL_INTERVAL_MS);
         }
         return;
@@ -210,7 +212,7 @@ export function useTxStatusPoller(isLive: boolean): void {
       } finally {
         isPollingRef.current = false;
         // Schedule next poll if not cancelled and still in live mode
-        if (!cancelledRef.current && isLive) {
+        if (!cancelled && isLive) {
           timeoutRef.current = setTimeout(poll, POLL_INTERVAL_MS);
         }
       }
@@ -220,7 +222,7 @@ export function useTxStatusPoller(isLive: boolean): void {
     poll();
 
     return () => {
-      cancelledRef.current = true;
+      cancelled = true;
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
