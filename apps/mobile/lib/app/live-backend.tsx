@@ -8,7 +8,7 @@ import * as React from "react";
 
 import { createInitialDemoState } from "@/lib/demo/demo-state";
 import { secureGet, secureSet, secureDelete } from "@/lib/storage/secure-store";
-import { createWallet, loadWallet, resetWallet } from "@/lib/wallet/wallet";
+import { createWallet, loadWallet, resetWallet, type WalletSnapshot } from "@/lib/wallet/wallet";
 import { getErc20Balance, formatUnits } from "@/lib/starknet/balances";
 import { STARKNET_NETWORKS, type StarknetNetworkId } from "@/lib/starknet/networks";
 import { TOKENS } from "@/lib/starknet/tokens";
@@ -240,9 +240,13 @@ export function useLiveBackend(): {
   const actions = React.useMemo<AppActions>(
     () => ({
       reset: async () => {
-        // Clear wallet and session-related secure state
-        await resetWallet();
-        await secureDelete(SESSION_KEYS_INDEX_ID);
+        try {
+          // Clear wallet and session-related secure state
+          await resetWallet();
+          await secureDelete(SESSION_KEYS_INDEX_ID);
+        } catch (err) {
+          console.error("[live] reset wallet error:", err);
+        }
         setState(createInitialLiveState());
       },
       
@@ -256,7 +260,7 @@ export function useLiveBackend(): {
       completeOnboarding: async (input) => {
         try {
           // Check if wallet already exists
-          let wallet = await loadWallet();
+          let wallet: WalletSnapshot | null = await loadWallet();
           
           // If no wallet exists, create one
           if (!wallet) {
@@ -265,17 +269,20 @@ export function useLiveBackend(): {
             wallet = await createWallet(networkId);
           }
           
-          // For now, wallet is created but not yet deployed
+          // wallet is now guaranteed to be defined after this point
+          const walletAddress = wallet.accountAddress;
+          const walletNetwork = wallet.networkId;
+          
           // Get network config for balance refresh
-          const network = STARKNET_NETWORKS[wallet.networkId];
+          const network = STARKNET_NETWORKS[walletNetwork];
           
           // Try to fetch initial balances
           let balances = stateRef.current.portfolio.balances;
           try {
             balances = await refreshBalances(
               network.rpcUrl,
-              wallet.accountAddress,
-              wallet.networkId
+              walletAddress,
+              walletNetwork
             );
           } catch {
             // Balance fetch failed, use empty balances
@@ -297,8 +304,8 @@ export function useLiveBackend(): {
               },
               account: {
                 network: "Starknet",
-                environment: wallet!.networkId,
-                address: wallet!.accountAddress,
+                environment: walletNetwork,
+                address: walletAddress,
                 status: "creating", // Created, not yet deployed
               },
               portfolio: {
@@ -317,7 +324,7 @@ export function useLiveBackend(): {
               newState,
               "onboarding",
               "Wallet created",
-              shortenHex(wallet!.accountAddress)
+              shortenHex(walletAddress)
             );
           });
         } catch (err) {
