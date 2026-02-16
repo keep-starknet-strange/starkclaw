@@ -34,17 +34,25 @@ function isValidStarknetAddress(addr: string): boolean {
   return /^0x[0-9a-fA-F]{40}$/.test(trimmed);
 }
 
+/** Convert string to number with fallback */
 function toNumberOr(n: string, fallback: number): number {
   const x = Number(n);
   return Number.isFinite(x) ? x : fallback;
 }
 
+/** Format hex address for display (e.g., 0x1234...abcd) */
 function shortenHex(input: string): string {
   const s = input.trim();
   if (!s) return s;
   if (s.length <= 18) return s;
   if (!s.startsWith("0x")) return s.slice(0, 16) + "…";
   return `${s.slice(0, 10)}…${s.slice(-6)}`;
+}
+
+/** Get token decimals for a given symbol */
+function getTokenDecimals(symbol: string): number {
+  const token = TOKENS.find(t => t.symbol === symbol);
+  return token?.decimals ?? 18;
 }
 
 export default function PoliciesScreen() {
@@ -133,7 +141,7 @@ export default function PoliciesScreen() {
     setNewRecipient("");
   }, [actions, newRecipient]);
 
-  // Create session key handler
+  /** Create session key and register it on-chain */
   const onCreateSessionKey = React.useCallback(async () => {
     if (!wallet) {
       actions.triggerAlert("No Wallet", "Please create a wallet first in live mode.", "warn");
@@ -176,7 +184,7 @@ export default function PoliciesScreen() {
     }
   }, [wallet, newKeyToken, newKeySpendLimit, newKeyExpiry, resolvedTargets, sessionKeysResult, actions]);
 
-  // Revoke single key handler
+  /** Revoke a single session key on-chain */
   const onRevokeKey = React.useCallback(async (publicKey: string) => {
     if (!wallet) return;
     
@@ -199,7 +207,7 @@ export default function PoliciesScreen() {
     }
   }, [wallet, sessionKeysResult, actions]);
 
-  // Emergency revoke all handler
+  /** Emergency revoke all session keys - requires owner authentication */
   const onEmergencyRevokeAll = React.useCallback(async () => {
     if (!wallet) return;
     
@@ -229,7 +237,7 @@ export default function PoliciesScreen() {
     }
   }, [wallet, sessionKeysResult, actions]);
 
-  // Save allowed targets configuration
+  /** Save allowed targets configuration (preset selection) */
   const onSaveConfiguration = React.useCallback(async () => {
     await haptic("tap");
     actions.setAllowedTargets(resolvedTargets, selectedPreset);
@@ -261,7 +269,7 @@ export default function PoliciesScreen() {
             <View style={{ gap: 12 }}>
               <Row>
                 <H2>Session Keys</H2>
-                <Muted>{sessionKeysResult.keys.length} active</Muted>
+                <Muted>{sessionKeysResult.keys.filter(k => !k.revokedAt).length} active</Muted>
               </Row>
 
               {/* Session Keys List */}
@@ -271,12 +279,13 @@ export default function PoliciesScreen() {
                     <View key={key.key} style={{ 
                       padding: 10, 
                       borderRadius: t.radius.md,
-                      backgroundColor: t.scheme === "dark" ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)"
+                      backgroundColor: t.scheme === "dark" ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)",
+                      opacity: key.revokedAt ? 0.5 : 1,
                     }}>
                       <Row>
                         <View style={{ gap: 2 }}>
                           <Body style={{ fontFamily: t.font.bodyMedium, fontSize: 13 }}>
-                            {key.tokenSymbol} • {formatUsd(Number(key.spendingLimit) / 1e18)}
+                            {key.tokenSymbol} • {key.revokedAt ? "(Revoked)" : formatUsd(Number(key.spendingLimit) / (10 ** getTokenDecimals(key.tokenSymbol)))}
                           </Body>
                           <Muted style={{ fontSize: 11 }}>
                             {shortenHex(key.key)} • {key.onchainValid === null ? "Checking..." : key.onchainValid ? "Valid" : "Invalid"}
@@ -325,6 +334,7 @@ export default function PoliciesScreen() {
                         <Chip
                           key={token.symbol}
                           label={token.symbol}
+                          selected={newKeyToken === token.symbol}
                           onPress={() => setNewKeyToken(token.symbol)}
                         />
                       ))}
@@ -336,7 +346,7 @@ export default function PoliciesScreen() {
                     value={newKeySpendLimit}
                     onChangeText={setNewKeySpendLimit}
                     keyboardType="decimal-pad"
-                    placeholder="Spend limit (USD)"
+                    placeholder="Spend limit (token amount)"
                     style={{
                       paddingVertical: 10,
                       paddingHorizontal: 12,
