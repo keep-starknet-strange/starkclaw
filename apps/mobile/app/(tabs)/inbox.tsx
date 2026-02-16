@@ -22,7 +22,7 @@ export default function InboxScreen() {
   const [tab, setTab] = React.useState<InboxTab>("alerts");
   
   // In live mode, use real activity with tx status
-  const realActivity = useActivity();
+  const realActivity = useActivity(mode === "live");
 
   const unread = state.alerts.filter((a) => !a.read).length;
 

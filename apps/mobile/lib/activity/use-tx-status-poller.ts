@@ -15,6 +15,7 @@ import { loadWallet } from "../wallet/wallet";
 
 const POLL_INTERVAL_MS = 15_000; // 15 seconds
 const MAX_POLL_AGE_MS = 30 * 60 * 1000; // Stop polling after 30 minutes
+const MAX_CONCURRENT_POLLS = 3; // Bounded concurrency for polling
 
 type TxReceiptStatus = {
   status: "ACCEPTED_ON_L2" | "ACCEPTED_ON_L1" | "REJECTED";
@@ -27,7 +28,6 @@ type TxReceiptStatus = {
  */
 async function pollTxStatus(
   txHash: string,
-  networkId: string,
   rpcUrl: string
 ): Promise<{ status: ActivityStatus; executionStatus?: string; revertReason?: string } | null> {
   try {
@@ -68,6 +68,33 @@ async function pollTxStatus(
 }
 
 /**
+ * Run tasks with bounded concurrency.
+ */
+async function runWithLimit<T>(
+  limit: number,
+  items: T[],
+  fn: (item: T) => Promise<void>
+): Promise<void> {
+  const running: Promise<void>[] = [];
+  
+  for (const item of items) {
+    const promise = fn(item).catch((err) => {
+      console.warn("Polling task failed:", err);
+    });
+    running.push(promise);
+    
+    if (running.length >= limit) {
+      await Promise.race(running);
+      // Remove completed promises
+      const completed = await Promise.allSettled(running);
+    }
+  }
+  
+  // Wait for remaining
+  await Promise.allSettled(running);
+}
+
+/**
  * Hook that polls pending transactions for status updates.
  * Only runs in live mode when app is foregrounded.
  */
@@ -96,13 +123,6 @@ export function useTxStatusPoller(isLive: boolean): void {
   React.useEffect(() => {
     const handleAppStateChange = (nextState: AppStateStatus) => {
       const wasBackground = appStateRef.current.match(/inactive|background/);
-      const isForeground = nextState === "active";
-
-      // Resume polling when coming to foreground
-      if (wasBackground && isForeground) {
-        // Will be picked up by the interval effect
-      }
-
       appStateRef.current = nextState;
     };
 
@@ -129,36 +149,47 @@ export function useTxStatusPoller(isLive: boolean): void {
       const now = Date.now();
       const items = await listActivity();
 
-      for (const item of items) {
-        // Only process pending txs with txHash
-        if (item.status !== "pending" || !item.txHash) {
-          continue;
-        }
+      // Filter items that need polling
+      const pendingItems = items.filter((item) => 
+        item.status === "pending" && item.txHash
+      );
 
-        // Stop polling old txs
-        const ageMs = now - item.createdAt * 1000;
-        if (ageMs > MAX_POLL_AGE_MS) {
-          await updateActivityByTxHash(item.txHash, {
-            status: "unknown",
-            executionStatus: "UNKNOWN",
-            revertReason: "Polling timeout - tx status unknown",
-          });
-          continue;
-        }
+      if (pendingItems.length === 0) return;
 
-        const result = await pollTxStatus(item.txHash, wallet.networkId, wallet.rpcUrl);
-        if (result) {
-          await updateActivityByTxHash(item.txHash, {
-            status: result.status,
-            executionStatus: result.executionStatus ?? null,
-            revertReason: result.revertReason ?? null,
-          });
+      // Process with bounded concurrency
+      await runWithLimit(
+        MAX_CONCURRENT_POLLS,
+        pendingItems,
+        async (item) => {
+          if (!item.txHash) return;
+
+          // Stop polling old txs
+          const ageMs = now - item.createdAt * 1000;
+          if (ageMs > MAX_POLL_AGE_MS) {
+            await updateActivityByTxHash(item.txHash, {
+              status: "unknown",
+              executionStatus: "UNKNOWN",
+              revertReason: "Polling timeout - tx status unknown",
+            });
+            return;
+          }
+
+          const result = await pollTxStatus(item.txHash, wallet.rpcUrl);
+          if (result) {
+            await updateActivityByTxHash(item.txHash, {
+              status: result.status,
+              executionStatus: result.executionStatus ?? null,
+              revertReason: result.revertReason ?? null,
+            });
+          }
         }
-      }
+      );
     };
 
-    // Initial poll
-    poll();
+    // Initial poll with error handling
+    poll().catch((err) => {
+      console.warn("Initial poll failed:", err);
+    });
 
     // Set up interval
     intervalRef.current = setInterval(poll, POLL_INTERVAL_MS);
