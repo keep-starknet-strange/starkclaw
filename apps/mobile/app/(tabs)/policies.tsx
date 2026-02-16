@@ -55,6 +55,16 @@ function getTokenDecimals(symbol: string): number {
   return token?.decimals ?? 18;
 }
 
+/** Format token amount (without USD prefix) */
+function formatTokenAmount(amount: number, symbol: string): string {
+  const decimals = getTokenDecimals(symbol);
+  const formatted = amount.toLocaleString("en-US", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: decimals <= 6 ? 2 : 4,
+  });
+  return `${formatted} ${symbol}`;
+}
+
 export default function PoliciesScreen() {
   const t = useAppTheme();
   const { state, actions, mode } = useApp();
@@ -285,7 +295,7 @@ export default function PoliciesScreen() {
                       <Row>
                         <View style={{ gap: 2 }}>
                           <Body style={{ fontFamily: t.font.bodyMedium, fontSize: 13 }}>
-                            {key.tokenSymbol} • {key.revokedAt ? "(Revoked)" : formatUsd(Number(key.spendingLimit) / (10 ** getTokenDecimals(key.tokenSymbol)))}
+                            {key.tokenSymbol} • {key.revokedAt ? "(Revoked)" : formatTokenAmount(Number(key.spendingLimit) / (10 ** getTokenDecimals(key.tokenSymbol)), key.tokenSymbol)}
                           </Body>
                           <Muted style={{ fontSize: 11 }}>
                             {shortenHex(key.key)} • {key.onchainValid === null ? "Checking..." : key.onchainValid ? "Valid" : "Invalid"}
