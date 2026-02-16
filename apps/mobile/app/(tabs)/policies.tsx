@@ -70,14 +70,28 @@ function parseDecimalToBigInt(value: string, decimals: number): bigint {
   const trimmed = value.trim();
   if (!trimmed) return 0n;
   
-  const parts = trimmed.split(".");
-  const integerPart = parts[0] || "0";
-  const fractionalPart = parts[1] || "";
+  // Validate format: at most one dot, only digits
+  if (!/^\d+(\.\d+)?$/.test(trimmed)) {
+    return 0n;
+  }
   
-  // Pad fractional part to required decimals
-  const paddedFraction = fractionalPart.padEnd(decimals, "0").slice(0, decimals);
-  
-  return BigInt(integerPart) * 10n ** BigInt(decimals) + BigInt(paddedFraction);
+  try {
+    const parts = trimmed.split(".");
+    const integerPart = parts[0] || "0";
+    const fractionalPart = parts[1] || "";
+    
+    // Validate parts contain only digits
+    if (!/^\d+$/.test(integerPart) || (fractionalPart && !/^\d+$/.test(fractionalPart))) {
+      return 0n;
+    }
+    
+    // Pad fractional part to required decimals
+    const paddedFraction = fractionalPart.padEnd(decimals, "0").slice(0, decimals);
+    
+    return BigInt(integerPart) * 10n ** BigInt(decimals) + BigInt(paddedFraction);
+  } catch {
+    return 0n;
+  }
 }
 
 export default function PoliciesScreen() {
