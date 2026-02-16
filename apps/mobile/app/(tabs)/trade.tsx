@@ -80,6 +80,7 @@ export default function TradeScreen() {
   React.useEffect(() => {
     if (!isLive) {
       setWallet(null);
+      setInFlightAction(null);
       return;
     }
 
@@ -145,17 +146,20 @@ export default function TradeScreen() {
         setInFlightAction(null);
       }
     } else if (inFlightAction === "confirm") {
-      setPreviewOpen(false);
-      if (swap.error) {
-        actions.triggerAlert("Swap Failed", swap.error, "danger");
-      } else if (swap.result) {
-        actions.triggerAlert(
-          "Swap Submitted",
-          `TX: ${shortenHex(swap.result.txHash)}`,
-          "info"
-        );
+      // Only clear state after swap reaches terminal state
+      if (swap.error || swap.phase === "done") {
+        setPreviewOpen(false);
+        if (swap.error) {
+          actions.triggerAlert("Swap Failed", swap.error, "danger");
+        } else if (swap.result) {
+          actions.triggerAlert(
+            "Swap Submitted",
+            `TX: ${shortenHex(swap.result.txHash)}`,
+            "info"
+          );
+        }
+        setInFlightAction(null);
       }
-      setInFlightAction(null);
     }
   }, [inFlightAction, swap.phase, swap.error, swap.result, actions]);
 
