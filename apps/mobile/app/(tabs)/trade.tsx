@@ -222,7 +222,16 @@ export default function TradeScreen() {
 
     // Live mode - execute swap
     setInFlightAction("confirm");
-    await swap.confirm();
+    try {
+      await swap.confirm();
+    } catch (err) {
+      // Handle synchronous errors that bypass the hook's internal error handling.
+      // Clear inFlightAction to avoid getting stuck, and let the useEffect
+      // handle any error state that was set by the hook.
+      setInFlightAction(null);
+      const errorMessage = err instanceof Error ? err.message : "Swap failed";
+      actions.triggerAlert("Swap Failed", errorMessage, "danger");
+    }
     // State handling done in useEffect
   }, [isLive, from, to, amount, blocked, reason, actions, swap]);
 
