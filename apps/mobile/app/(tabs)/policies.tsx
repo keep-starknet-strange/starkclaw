@@ -202,7 +202,7 @@ export default function PoliciesScreen() {
     }
     
     const expirySeconds = Number(newKeyExpiry);
-    if (!Number.isInteger(expirySeconds) || expirySeconds < 0) {
+    if (!Number.isInteger(expirySeconds) || expirySeconds <= 0) {
       actions.triggerAlert("Invalid Expiry", "Please enter a valid expiry in seconds.", "warn");
       return;
     }
