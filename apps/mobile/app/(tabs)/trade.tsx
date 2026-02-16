@@ -171,9 +171,14 @@ export default function TradeScreen() {
       return;
     }
 
-    if (!isLive || !wallet) {
+    if (!isLive) {
       // Demo mode - allowed by policy
       setPreviewOpen(true);
+      return;
+    }
+
+    if (!wallet) {
+      actions.triggerAlert("Wallet Not Ready", "Live wallet is still loading. Try again in a moment.", "warn");
       return;
     }
 
@@ -220,6 +225,11 @@ export default function TradeScreen() {
       return;
     }
 
+    if (!wallet) {
+      actions.triggerAlert("Wallet Not Ready", "Live wallet is still loading. Try again in a moment.", "warn");
+      return;
+    }
+
     // Live mode - execute swap
     setInFlightAction("confirm");
     try {
@@ -233,7 +243,7 @@ export default function TradeScreen() {
       actions.triggerAlert("Swap Failed", errorMessage, "danger");
     }
     // State handling done in useEffect
-  }, [isLive, from, to, amount, blocked, reason, actions, swap]);
+  }, [isLive, wallet, from, to, amount, blocked, reason, actions, swap]);
 
   return (
     <AppScreen>
@@ -336,7 +346,7 @@ export default function TradeScreen() {
 
             <PrimaryButton
               label={isLive && wallet ? "Get Quote" : "Preview"}
-              disabled={swap.phase === "quoting"}
+              disabled={swap.phase === "quoting" || (isLive && !wallet)}
               onPress={handlePreview}
             />
           </View>
@@ -424,7 +434,7 @@ export default function TradeScreen() {
 
                   <PrimaryButton
                     label={isLive ? (swap.phase === "executing" ? "Swapping..." : "Execute Swap") : "Simulate execution"}
-                    disabled={swap.phase === "executing"}
+                    disabled={swap.phase === "executing" || (isLive && !wallet)}
                     onPress={handleExecute}
                   />
                   <GhostButton
