@@ -6,6 +6,8 @@ export type DemoBalance = {
   symbol: DemoTokenSymbol;
   name: string;
   amount: number;
+  amountRaw: string;
+  amountDisplay: string;
   usdPrice: number;
   change24hPct: number; // -100..+100
 };
@@ -197,9 +199,9 @@ export function createInitialDemoState(): DemoState {
     },
     portfolio: {
       balances: [
-        { symbol: "ETH", name: "Ether", amount: 0.82, usdPrice: 3320, change24hPct: 1.8 },
-        { symbol: "USDC", name: "USD Coin", amount: 1460.5, usdPrice: 1.0, change24hPct: 0.0 },
-        { symbol: "STRK", name: "Starknet", amount: 620, usdPrice: 1.72, change24hPct: -3.1 },
+        { symbol: "ETH", name: "Ether", amount: 0.82, amountRaw: "820000000000000000", amountDisplay: "0.82", usdPrice: 3320, change24hPct: 1.8 },
+        { symbol: "USDC", name: "USD Coin", amount: 1460.5, amountRaw: "1460500000", amountDisplay: "1460.5", usdPrice: 1.0, change24hPct: 0.0 },
+        { symbol: "STRK", name: "Starknet", amount: 620, amountRaw: "620000000000000000000", amountDisplay: "620", usdPrice: 1.72, change24hPct: -3.1 },
       ],
     },
     policy: {

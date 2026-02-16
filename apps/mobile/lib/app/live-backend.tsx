@@ -47,40 +47,64 @@ function shortenHex(input: string): string {
 }
 
 /**
+ * Sanitize error for logging - only extract whitelisted non-sensitive properties.
+ */
+function sanitizeError(err: unknown): string {
+  if (err instanceof Error) {
+    // Extract only safe properties
+    const parts: string[] = [];
+    if (err.name) parts.push(err.name);
+    if (err.message) parts.push(err.message);
+    return parts.length > 0 ? parts.join(": ") : "Unknown error";
+  }
+  if (err && typeof err === "object" && "code" in err) {
+    // Handle errors with code property (e.g., network errors)
+    return `code: ${(err as { code: unknown }).code}`;
+  }
+  return "redacted";
+}
+
+/**
  * Refresh live balances from chain for ETH, USDC, STRK.
+ * Runs balance fetches in parallel using Promise.all.
  */
 async function refreshBalances(
   rpcUrl: string,
   accountAddress: string,
   networkId: StarknetNetworkId
 ): Promise<AppState["portfolio"]["balances"]> {
-  const balances: AppState["portfolio"]["balances"] = [];
-
-  for (const token of TOKENS) {
+  // Map each token to a promise that catches its own errors
+  const balancePromises = TOKENS.map(async (token): Promise<AppState["portfolio"]["balances"][number]> => {
     try {
       const tokenAddress = token.addressByNetwork[networkId];
       const rawBalance = await getErc20Balance(rpcUrl, tokenAddress, accountAddress);
       const formatted = formatUnits(rawBalance, token.decimals);
       
-      balances.push({
+      return {
         symbol: token.symbol,
         name: token.name,
-        amount: Number(formatted) || 0,
+        amount: 0, // Deprecated: use amountDisplay for UI
+        amountRaw: rawBalance.toString(),
+        amountDisplay: formatted,
         usdPrice: 0, // TODO: fetch real price
         change24hPct: 0,
-      });
+      };
     } catch {
       // Token might not be deployed or balance call failed
-      balances.push({
+      return {
         symbol: token.symbol,
         name: token.name,
         amount: 0,
+        amountRaw: "0",
+        amountDisplay: "0",
         usdPrice: 0,
         change24hPct: 0,
-      });
+      };
     }
-  }
+  });
 
+  // Wait for all promises in parallel, preserving TOKENS order
+  const balances = await Promise.all(balancePromises);
   return balances;
 }
 
@@ -122,9 +146,9 @@ function createInitialLiveState(): AppState {
     },
     portfolio: {
       balances: [
-        { symbol: "ETH", name: "Ether", amount: 0, usdPrice: 0, change24hPct: 0 },
-        { symbol: "USDC", name: "USD Coin", amount: 0, usdPrice: 0, change24hPct: 0 },
-        { symbol: "STRK", name: "Starknet", amount: 0, usdPrice: 0, change24hPct: 0 },
+        { symbol: "ETH", name: "Ether", amount: 0, amountRaw: "0", amountDisplay: "0", usdPrice: 0, change24hPct: 0 },
+        { symbol: "USDC", name: "USD Coin", amount: 0, amountRaw: "0", amountDisplay: "0", usdPrice: 0, change24hPct: 0 },
+        { symbol: "STRK", name: "Starknet", amount: 0, amountRaw: "0", amountDisplay: "0", usdPrice: 0, change24hPct: 0 },
       ],
     },
     alerts: [],
@@ -215,7 +239,7 @@ export function useLiveBackend(): {
           setState(createInitialLiveState());
         }
       } catch (err) {
-        console.error("[live] Boot error:", err);
+        console.error("[live] Boot error:", sanitizeError(err));
         if (!cancelled) {
           setState(createInitialLiveState());
         }
@@ -245,7 +269,7 @@ export function useLiveBackend(): {
           await resetWallet();
           await secureDelete(SESSION_KEYS_INDEX_ID);
         } catch (err) {
-          console.error("[live] reset wallet error:", err);
+          console.error("[live] reset wallet error");
         }
         setState(createInitialLiveState());
       },
@@ -287,9 +311,9 @@ export function useLiveBackend(): {
           } catch {
             // Balance fetch failed, use empty balances
             balances = [
-              { symbol: "ETH" as const, name: "Ether", amount: 0, usdPrice: 0, change24hPct: 0 },
-              { symbol: "USDC" as const, name: "USD Coin", amount: 0, usdPrice: 0, change24hPct: 0 },
-              { symbol: "STRK" as const, name: "Starknet", amount: 0, usdPrice: 0, change24hPct: 0 },
+              { symbol: "ETH" as const, name: "Ether", amount: 0, amountRaw: "0", amountDisplay: "0", usdPrice: 0, change24hPct: 0 },
+              { symbol: "USDC" as const, name: "USD Coin", amount: 0, amountRaw: "0", amountDisplay: "0", usdPrice: 0, change24hPct: 0 },
+              { symbol: "STRK" as const, name: "Starknet", amount: 0, amountRaw: "0", amountDisplay: "0", usdPrice: 0, change24hPct: 0 },
             ];
           }
           
@@ -328,21 +352,32 @@ export function useLiveBackend(): {
             );
           });
         } catch (err) {
-          console.error("[live] completeOnboarding error:", err);
-          // Still complete onboarding but show error
-          setState((s) => ({
-            ...s,
-            onboarding: {
-              completed: true,
-              displayName: input.displayName.trim(),
-              riskMode: input.riskMode,
-            },
-            policy: {
-              ...s.policy,
-              dailySpendCapUsd: input.dailySpendCapUsd,
-              perTxCapUsd: input.perTxCapUsd,
-            },
-          }));
+          console.error("[live] completeOnboarding error:", sanitizeError(err));
+          // Do NOT mark onboarding as completed on wallet failure
+          // Set account status to error and keep onboarding incomplete
+          setState((s) => {
+            const newState: AppState = {
+              ...s,
+              account: {
+                ...s.account,
+                status: "not-created", // Reset to not-created on failure
+              },
+              // Keep onboarding incomplete - do NOT set completed: true
+              onboarding: {
+                completed: false,
+                displayName: input.displayName.trim(),
+                riskMode: input.riskMode,
+              },
+            };
+            
+            // Add activity noting the failure
+            return appendActivity(
+              newState,
+              "onboarding",
+              "Wallet creation failed",
+              sanitizeError(err)
+            );
+          });
         }
       },
       
@@ -479,8 +514,7 @@ export function useLiveBackend(): {
       },
       
       simulateTrade: () => {
-        // TODO: Implement with real RPC call
-        console.log("[live] simulateTrade - TODO");
+        // Silent no-op - will be implemented in future
       },
       
       sendAgentMessage: (text) => {
