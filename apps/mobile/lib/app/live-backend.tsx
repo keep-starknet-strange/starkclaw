@@ -50,16 +50,17 @@ function shortenHex(input: string): string {
  * Sanitize error for logging - only extract whitelisted non-sensitive properties.
  */
 function sanitizeError(err: unknown): string {
-  if (err instanceof Error) {
-    // Extract only safe properties
-    const parts: string[] = [];
-    if (err.name) parts.push(err.name);
-    if (err.message) parts.push(err.message);
-    return parts.length > 0 ? parts.join(": ") : "Unknown error";
-  }
+  // Only return safe identifiers - never err.message which may contain addresses/hashes
   if (err && typeof err === "object" && "code" in err) {
     // Handle errors with code property (e.g., network errors)
     return `code: ${(err as { code: unknown }).code}`;
+  }
+  if (err instanceof Error) {
+    // Only return err.name - never err.message (may leak addresses/hashes/txIds)
+    if (err.name && err.name !== "Error") {
+      return err.name;
+    }
+    return "Unknown error";
   }
   return "redacted";
 }
@@ -233,7 +234,23 @@ export function useLiveBackend(): {
               }
             }
           } else {
-            setState(parsed);
+            // Wallet not found or zero address - sanitize state to avoid showing stale data
+            const sanitizedState: AppState = {
+              ...parsed,
+              account: {
+                ...parsed.account,
+                address: "0x0000000000000000000000000000000000000000000000000000000000000000",
+                status: "not-created",
+                environment: "sepolia",
+              },
+              portfolio: {
+                ...parsed.portfolio,
+                balances: [], // Clear stale balances
+              },
+            };
+            if (!cancelled) {
+              setState(sanitizedState);
+            }
           }
         } else {
           setState(createInitialLiveState());
@@ -270,8 +287,10 @@ export function useLiveBackend(): {
           await secureDelete(SESSION_KEYS_INDEX_ID);
         } catch (err) {
           console.error("[live] reset wallet error");
+        } finally {
+          // Always clear in-memory UI state, even if secure cleanup failed
+          setState(createInitialLiveState());
         }
-        setState(createInitialLiveState());
       },
       
       setOnboardingProfile: (displayName, riskMode) => {
