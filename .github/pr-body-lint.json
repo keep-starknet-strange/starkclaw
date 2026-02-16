@@ -1,0 +1,21 @@
+{
+  "requiredHeadings": [
+    "Cross-repo boundary awareness",
+    "What changed",
+    "Spec impact",
+    "How to verify",
+    "Security checklist",
+    "Risk notes"
+  ],
+  "boundaryPatterns": [
+    ".github/workflows/",
+    "apps/mobile/lib/signer/",
+    "contracts/",
+    "docs/"
+  ],
+  "counterpartRepos": [
+    "keep-starknet-strange/starknet-agentic",
+    "omarespejel/SISNA"
+  ]
+}
+
