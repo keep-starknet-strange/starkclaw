@@ -65,6 +65,21 @@ function formatTokenAmount(amount: number, symbol: string): string {
   return `${formatted} ${symbol}`;
 }
 
+/** Parse decimal string to BigInt (e.g., "1.5" -> 1500000000000000000n for 18 decimals) */
+function parseDecimalToBigInt(value: string, decimals: number): bigint {
+  const trimmed = value.trim();
+  if (!trimmed) return 0n;
+  
+  const parts = trimmed.split(".");
+  const integerPart = parts[0] || "0";
+  const fractionalPart = parts[1] || "";
+  
+  // Pad fractional part to required decimals
+  const paddedFraction = fractionalPart.padEnd(decimals, "0").slice(0, decimals);
+  
+  return BigInt(integerPart) * 10n ** BigInt(decimals) + BigInt(paddedFraction);
+}
+
 export default function PoliciesScreen() {
   const t = useAppTheme();
   const { state, actions, mode } = useApp();
@@ -166,15 +181,25 @@ export default function PoliciesScreen() {
       return;
     }
 
-    const spendLimit = BigInt(Math.floor(Number(newKeySpendLimit) * (10 ** token.decimals)));
-    const expiry = Number(newKeyExpiry) || 86400;
+    const spendLimit = parseDecimalToBigInt(newKeySpendLimit, token.decimals);
+    if (spendLimit <= 0n) {
+      actions.triggerAlert("Invalid Limit", "Please enter a valid positive amount.", "warn");
+      return;
+    }
+    
+    const expirySeconds = Number(newKeyExpiry);
+    if (!Number.isInteger(expirySeconds) || expirySeconds < 0) {
+      actions.triggerAlert("Invalid Expiry", "Please enter a valid expiry in seconds.", "warn");
+      return;
+    }
+    
     const targets = resolvedTargets;
 
     const result = await sessionKeysResult.create({
       tokenSymbol: newKeyToken,
       tokenAddress: token.addressByNetwork[wallet.networkId],
       spendingLimit: spendLimit,
-      validForSeconds: expiry,
+      validForSeconds: expirySeconds,
       allowedContracts: targets,
     });
 
@@ -303,19 +328,19 @@ export default function PoliciesScreen() {
                         </View>
                         <Pressable
                           onPress={() => onRevokeKey(key.key)}
-                          disabled={sessionKeysResult.status === "revoking"}
+                          disabled={!!key.revokedAt || sessionKeysResult.status === "revoking"}
                           style={({ pressed }) => ({
                             paddingVertical: 6,
                             paddingHorizontal: 10,
                             borderRadius: 999,
                             borderWidth: 1,
-                            borderColor: "rgba(255,69,58,0.30)",
-                            backgroundColor: "rgba(255,69,58,0.10)",
+                            borderColor: key.revokedAt ? "rgba(128,128,128,0.30)" : "rgba(255,69,58,0.30)",
+                            backgroundColor: key.revokedAt ? "rgba(128,128,128,0.10)" : "rgba(255,69,58,0.10)",
                             opacity: pressed ? 0.85 : 1,
                           })}
                         >
-                          <Body style={{ fontFamily: t.font.bodyMedium, fontSize: 12, color: t.colors.bad }}>
-                            Revoke
+                          <Body style={{ fontFamily: t.font.bodyMedium, fontSize: 12, color: key.revokedAt ? t.colors.muted : t.colors.bad }}>
+                            {key.revokedAt ? "Revoked" : "Revoke"}
                           </Body>
                         </Pressable>
                       </Row>
