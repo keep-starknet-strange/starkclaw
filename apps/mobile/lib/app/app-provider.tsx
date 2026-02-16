@@ -9,6 +9,7 @@ import * as React from "react";
 
 import { DemoProvider, useDemo } from "@/lib/demo/demo-store";
 import { secureGet, secureSet } from "@/lib/storage/secure-store";
+import { useTxStatusPoller } from "@/lib/activity/use-tx-status-poller";
 
 import { useLiveBackend } from "./live-backend";
 import type { AppContextValue, AppMode } from "./types";
@@ -64,6 +65,10 @@ function LiveBridge(props: {
   setMode: (m: AppMode) => void;
 }) {
   const live = useLiveBackend();
+  
+  // Start tx status poller for live mode
+  useTxStatusPoller(props.mode === "live");
+
   const value = React.useMemo<AppContextValue>(
     () => ({
       bootStatus: live.bootStatus,
