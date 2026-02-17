@@ -4,7 +4,9 @@
   "signer_api_path": "/v1/sign/session-transaction",
   "required_auth_headers": [
     "X-Keyring-Timestamp",
-    "X-Keyring-Nonce",
+    "X-Keyring-Nonce", 
     "X-Keyring-Signature"
-  ]
+  ],
+  "timestamp_max_age_seconds": 300,
+  "nonce_uniqueness": "server_enforced"
 }

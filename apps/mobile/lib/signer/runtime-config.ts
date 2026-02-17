@@ -73,6 +73,16 @@ function isLoopbackHost(hostname: string): boolean {
   return hostname === "127.0.0.1" || hostname === "localhost" || hostname === "::1";
 }
 
+export function isProductionMode(): boolean {
+  // Explicit production flag takes precedence
+  const explicitFlag = process.env.EXPO_PUBLIC_IS_PRODUCTION?.trim().toLowerCase();
+  if (explicitFlag === "true") return true;
+  if (explicitFlag === "false") return false;
+  
+  // Fallback to NODE_ENV
+  return process.env.NODE_ENV === "production";
+}
+
 export function getSignerMode(): SignerMode {
   const raw = process.env.EXPO_PUBLIC_SIGNER_MODE?.trim().toLowerCase();
   if (!raw) {
@@ -135,7 +145,7 @@ export async function loadRemoteSignerRuntimeConfig(): Promise<RemoteSignerRunti
     );
   }
 
-  const isProduction = process.env.NODE_ENV === "production";
+  const isProduction = isProductionMode();
   const loopback = isLoopbackHost(proxyUrl.hostname);
   const mtlsRequired = parseBoolean(process.env.EXPO_PUBLIC_SISNA_MTLS_REQUIRED);
 

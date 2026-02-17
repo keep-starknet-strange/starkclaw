@@ -43,7 +43,13 @@ async function loadPinningModule(): Promise<PinningModule> {
 export async function ensureSignerCertificatePinning(
   config: CertificatePinningConfig
 ): Promise<void> {
-  if (config.pinnedPublicKeyHashes.length === 0) return;
+  // Fail-closed: pinning is required but no hashes provided
+  if (config.pinnedPublicKeyHashes.length === 0) {
+    throw new SignerRuntimeConfigError(
+      "PINNING_REQUIRED",
+      "Certificate pinning is required but no public key hashes were provided."
+    );
+  }
 
   const fingerprint = buildConfigFingerprint(config);
   if (lastInitializedConfigFingerprint === fingerprint) return;

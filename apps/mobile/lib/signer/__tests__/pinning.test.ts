@@ -93,4 +93,15 @@ describe("signer certificate pinning", () => {
       code: "PINNING_UNAVAILABLE",
     });
   });
+
+  it("fails closed when no pinned public key hashes provided", async () => {
+    await expect(
+      ensureSignerCertificatePinning({
+        ...baseConfig,
+        pinnedPublicKeyHashes: [],
+      })
+    ).rejects.toMatchObject({
+      code: "PINNING_REQUIRED",
+    });
+  });
 });

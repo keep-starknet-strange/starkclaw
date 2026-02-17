@@ -252,6 +252,8 @@ export class KeyringProxySigner extends SignerInterface {
     };
 
     const rawBody = JSON.stringify(requestPayload);
+    // Timestamp is generated fresh for each request; replay protection is enforced
+    // server-side via nonce + timestamp validation (see interop-version.json spec)
     const timestamp = Date.now().toString();
     const nonce = await randomNonceHex(16);
     const url = new URL(this.endpointPath, this.config.proxyUrl);
