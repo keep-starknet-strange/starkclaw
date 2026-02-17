@@ -10,7 +10,6 @@ import { AppState, AppStateStatus } from "react-native";
 
 import { listActivity, updateActivityByTxHash, type ActivityStatus } from "../activity/activity";
 import { starknetRpc } from "../starknet/rpc";
-import { STARKNET_NETWORKS } from "../starknet/networks";
 import { loadWallet } from "../wallet/wallet";
 
 const POLL_INTERVAL_MS = 15_000; // 15 seconds
@@ -77,25 +76,25 @@ async function runWithLimit<T>(
   items: T[],
   fn: (item: T) => Promise<void>
 ): Promise<void> {
-  let running: Promise<void>[] = [];
-  const runningSet = new Set<Promise<void>>();
+  const running = new Set<Promise<void>>();
   
   for (const item of items) {
-    const promise = fn(item).catch((err) => {
-      console.warn("Polling task failed:", err);
-    });
-    running.push(promise);
-    runningSet.add(promise);
+    const promise = fn(item)
+      .catch((err) => {
+        console.warn("Polling task failed:", err);
+      })
+      .finally(() => {
+        running.delete(promise);
+      });
+    running.add(promise);
     
-    if (running.length >= limit) {
+    if (running.size >= limit) {
       await Promise.race(running);
-      // Remove completed promises
-      running = running.filter((p) => runningSet.has(p));
     }
   }
   
   // Wait for remaining
-  await Promise.allSettled(running);
+  await Promise.allSettled(Array.from(running));
 }
 
 /**
@@ -113,11 +112,15 @@ export function useTxStatusPoller(isLive: boolean): void {
     if (!isLive) return;
 
     let mounted = true;
-    loadWallet().then((w) => {
-      if (mounted && w) {
-        setWallet({ networkId: w.networkId, rpcUrl: w.rpcUrl });
-      }
-    });
+    loadWallet()
+      .then((w) => {
+        if (mounted && w) {
+          setWallet({ networkId: w.networkId, rpcUrl: w.rpcUrl });
+        }
+      })
+      .catch((err) => {
+        console.warn("Failed to load wallet for tx poller:", err);
+      });
 
     return () => {
       mounted = false;
@@ -156,8 +159,12 @@ export function useTxStatusPoller(isLive: boolean): void {
       // Skip if app is backgrounded
       if (appStateRef.current.match(/inactive|background/)) {
         // Schedule next poll if not cancelled and still in live mode
-        if (!cancelled && isLive) {
-          timeoutRef.current = setTimeout(poll, POLL_INTERVAL_MS);
+        if (!cancelled) {
+          timeoutRef.current = setTimeout(() => {
+            void poll().catch((err) => {
+              console.warn("Poll invocation failed:", err);
+            });
+          }, POLL_INTERVAL_MS);
         }
         return;
       }
@@ -212,14 +219,20 @@ export function useTxStatusPoller(isLive: boolean): void {
       } finally {
         isPollingRef.current = false;
         // Schedule next poll if not cancelled and still in live mode
-        if (!cancelled && isLive) {
-          timeoutRef.current = setTimeout(poll, POLL_INTERVAL_MS);
+        if (!cancelled) {
+          timeoutRef.current = setTimeout(() => {
+            void poll().catch((err) => {
+              console.warn("Poll invocation failed:", err);
+            });
+          }, POLL_INTERVAL_MS);
         }
       }
     };
 
     // Initial poll
-    poll();
+    void poll().catch((err) => {
+      console.warn("Initial poll failed:", err);
+    });
 
     return () => {
       cancelled = true;
