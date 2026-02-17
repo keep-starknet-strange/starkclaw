@@ -15,6 +15,7 @@ import {
   getSignerMode,
   loadRemoteSignerRuntimeConfig,
   saveSignerCredentials,
+  isProductionMode,
 } from "../runtime-config";
 
 const secureGetMock = vi.mocked(secureGet);
@@ -386,20 +387,18 @@ describe("isProductionMode", () => {
   it("returns true when EXPO_PUBLIC_IS_PRODUCTION is 'true'", () => {
     process.env.EXPO_PUBLIC_IS_PRODUCTION = "true";
     process.env.NODE_ENV = "development";
-    // The isProductionMode function reads at call time, so we test the logic
-    expect(process.env.EXPO_PUBLIC_IS_PRODUCTION).toBe("true");
-    expect(process.env.NODE_ENV).toBe("development");
+    expect(isProductionMode()).toBe(true);
   });
 
   it("returns false when EXPO_PUBLIC_IS_PRODUCTION is 'false'", () => {
     process.env.EXPO_PUBLIC_IS_PRODUCTION = "false";
     process.env.NODE_ENV = "production";
-    expect(process.env.EXPO_PUBLIC_IS_PRODUCTION).toBe("false");
+    expect(isProductionMode()).toBe(false);
   });
 
   it("falls back to NODE_ENV when EXPO_PUBLIC_IS_PRODUCTION is not set", () => {
     delete process.env.EXPO_PUBLIC_IS_PRODUCTION;
     process.env.NODE_ENV = "production";
-    expect(process.env.NODE_ENV).toBe("production");
+    expect(isProductionMode()).toBe(true);
   });
 });

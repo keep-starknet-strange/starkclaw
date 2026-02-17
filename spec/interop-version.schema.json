@@ -35,6 +35,14 @@
         "X-Keyring-Nonce",
         "X-Keyring-Signature"
       ]
+    },
+    "timestamp_max_age_seconds": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "nonce_uniqueness": {
+      "type": "string",
+      "enum": ["server_enforced", "client_generated", "not_required"]
     }
   }
 }
