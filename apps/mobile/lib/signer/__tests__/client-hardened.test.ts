@@ -1,11 +1,5 @@
 /**
- * Hardened Signer Client Tests
- *
- * Comprehensive edge case and security testing for production readiness.
- * Tests cover: input validation, boundary conditions, race conditions,
- * malformed responses, security headers, retry logic, and error recovery.
- *
- * Issue: #54
+ * Hardened signer client tests for production security and edge-case handling.
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';

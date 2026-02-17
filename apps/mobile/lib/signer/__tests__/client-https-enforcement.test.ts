@@ -1,21 +1,13 @@
 /**
- * HTTPS Enforcement Security Tests (#65)
- *
- * TDD-first: These tests FAIL until HTTPS enforcement is implemented.
- *
- * Security Issue: H-1 (HIGH)
- * OWASP: API2:2023 Broken Authentication
- * CWE: CWE-319 Cleartext Transmission of Sensitive Information
- *
- * Ensures that the signer client rejects insecure HTTP URLs and only
- * accepts HTTPS URLs to prevent bearer token exposure via MITM attacks.
+ * HTTPS enforcement tests for signer client transport security.
+ * Ensures insecure HTTP URLs are rejected to protect bearer credentials.
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createSignerClient, SignerClientError, SignerErrorCode } from '../client';
 import type { SignerClientConfig } from '../types';
 
-describe('HTTPS Enforcement (#65)', () => {
+describe('HTTPS Enforcement', () => {
   const validRequest = {
     sessionKey: '0xabcdef123456',
     transaction: {

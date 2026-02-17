@@ -1,0 +1,20 @@
+{
+  "reviewProfile": "security-focused",
+  "focus": [
+    "security",
+    "cross-repo-compatibility",
+    "architecture"
+  ],
+  "patternRepositories": [
+    "keep-starknet-strange/starknet-agentic",
+    "omarespejel/SISNA"
+  ],
+  "paths": {
+    "include": [
+      "apps/mobile/lib/signer/**",
+      "contracts/**",
+      ".github/workflows/**",
+      "docs/**"
+    ]
+  }
+}

@@ -1,10 +1,5 @@
 /**
- * SISNA Signer Client - Mock Server Integration Tests
- *
- * These tests validate the client against a deterministic mock HTTP server.
- * This serves as a reference implementation for actual SISNA signer behavior.
- *
- * Scope: #54 groundwork only
+ * SISNA signer client integration tests with a deterministic mock HTTP server.
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';

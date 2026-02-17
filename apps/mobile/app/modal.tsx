@@ -75,7 +75,7 @@ export default function SettingsModal() {
               await haptic("warn");
               const next = mode === "demo" ? "live" : "demo";
               setMode(next);
-              actions.reset();
+              await actions.reset();
               router.replace("/(onboarding)/welcome");
             }}
           />
@@ -83,7 +83,7 @@ export default function SettingsModal() {
             label="Reset state"
             onPress={async () => {
               await haptic("warn");
-              actions.reset();
+              await actions.reset();
               router.replace("/(onboarding)/welcome");
             }}
           />

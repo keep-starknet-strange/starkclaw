@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import Animated, { FadeInDown } from "react-native-reanimated";
 
 import { useApp } from "@/lib/app/app-provider";
+import { type DemoBalance } from "@/lib/demo/demo-state";
 import { GhostButton, IconButton } from "@/ui/buttons";
 import { AppIcon } from "@/ui/app-icon";
 import { Badge } from "@/ui/badge";
@@ -16,8 +17,14 @@ import { AppScreen, Row } from "@/ui/screen";
 import { formatPct, formatUsd } from "@/ui/format";
 import { Body, Display, H2, Metric, Mono, Muted } from "@/ui/typography";
 
-function portfolioTotalUsd(balances: { amount: number; usdPrice: number }[]): number {
-  return balances.reduce((sum, b) => sum + b.amount * b.usdPrice, 0);
+function toNumberOrZero(value: string | undefined): number {
+  if (!value) return 0;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function portfolioTotalUsd(balances: DemoBalance[]): number {
+  return balances.reduce((sum, b) => sum + toNumberOrZero(b.amountRaw) * b.usdPrice, 0);
 }
 
 export default function HomeScreen() {
@@ -31,7 +38,7 @@ export default function HomeScreen() {
   const pending = state.agent.proposals.find((p) => p.status === "pending");
 
   const approxChange =
-    state.portfolio.balances.reduce((sum, b) => sum + b.change24hPct * (b.amount * b.usdPrice), 0) /
+    state.portfolio.balances.reduce((sum, b) => sum + b.change24hPct * (toNumberOrZero(b.amountRaw) * b.usdPrice), 0) /
     Math.max(1, total);
 
   return (
@@ -96,7 +103,10 @@ export default function HomeScreen() {
 
             <View style={{ gap: 10 }}>
               {state.portfolio.balances.map((b) => {
-                const usd = b.amount * b.usdPrice;
+                const amountNum = toNumberOrZero(b.amountRaw);
+                const usd = amountNum * b.usdPrice;
+                const displayAmount = b.amountDisplay ?? String(b.amount);
+                const maxDigits = b.symbol === "USDC" ? 2 : 4;
                 return (
                   <Row key={b.symbol}>
                     <View style={{ gap: 2 }}>
@@ -105,7 +115,7 @@ export default function HomeScreen() {
                     </View>
                     <View style={{ alignItems: "flex-end", gap: 2 }}>
                       <Body style={{ fontFamily: t.font.bodyMedium, fontVariant: ["tabular-nums"] }}>
-                        {b.amount.toLocaleString(undefined, { maximumFractionDigits: b.symbol === "USDC" ? 2 : 4 })}
+                        {Number(displayAmount).toLocaleString("en-US", { maximumFractionDigits: maxDigits })}
                       </Body>
                       <Muted style={{ fontVariant: ["tabular-nums"] }}>{formatUsd(usd)}</Muted>
                     </View>

@@ -40,7 +40,7 @@ export default function OnboardingReadyScreen() {
     }
 
     await haptic("success");
-    actions.completeOnboarding({
+    await actions.completeOnboarding({
       displayName,
       riskMode: state.onboarding.riskMode,
       dailySpendCapUsd: state.policy.dailySpendCapUsd,

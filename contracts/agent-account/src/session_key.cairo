@@ -129,7 +129,8 @@ pub mod SessionKeyComponent {
             }
 
             // Otherwise, target must match at least one non-zero slot.
-            // Skip unfilled (zero) slots to avoid matching address 0x0.
+            // Zero slots are skipped to prevent treating unfilled entries
+            // as "allow calls to address 0x0".
             if (policy.allowed_contract_0 != zero_addr && policy.allowed_contract_0 == target)
                 || (policy.allowed_contract_1 != zero_addr && policy.allowed_contract_1 == target)
                 || (policy.allowed_contract_2 != zero_addr && policy.allowed_contract_2 == target)

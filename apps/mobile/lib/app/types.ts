@@ -40,9 +40,9 @@ export type TradeDraft = {
 };
 
 export type AppActions = {
-  reset: () => void;
+  reset: () => void | Promise<void>;
   setOnboardingProfile: (displayName: string, riskMode: DemoState["onboarding"]["riskMode"]) => void;
-  completeOnboarding: (input: CompleteOnboardingInput) => void;
+  completeOnboarding: (input: CompleteOnboardingInput) => void | Promise<void>;
   setAlertPref: (key: DemoAlertPrefKey, enabled: boolean) => void;
   markAllAlertsRead: () => void;
   triggerAlert: (title: string, body: string, severity?: DemoState["alerts"][number]["severity"]) => void;
@@ -51,6 +51,7 @@ export type AppActions = {
   setContractMode: (mode: DemoState["policy"]["contractAllowlistMode"]) => void;
   addAllowlistedRecipient: (recipientShort: string) => void;
   removeAllowlistedRecipient: (recipientShort: string) => void;
+  setAllowedTargets: (targets: string[], preset: "transfers" | "avnu_swap" | "custom") => void;
   simulateTrade: (trade: TradeDraft) => void;
   sendAgentMessage: (text: string) => void;
   approveProposal: (proposalId: string) => void;

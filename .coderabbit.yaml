@@ -1,0 +1,56 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: "en-US"
+early_access: false
+
+reviews:
+  profile: "assertive"
+  request_changes_workflow: true
+  high_level_summary: true
+  review_status: true
+  collapse_walkthrough: true
+  poem: false
+  fail_commit_status: true
+  auto_review:
+    enabled: true
+    drafts: false
+
+  path_instructions:
+    - path: "apps/mobile/lib/signer/**"
+      instructions: |
+        Treat signer boundary changes as security-critical.
+        Verify strict input validation, fail-closed behavior, timeout handling, replay/auth checks,
+        and parity with SISNA API envelope and starknet-agentic session-signature semantics.
+    - path: "contracts/**"
+      instructions: |
+        Flag any change that can alter session-key authority boundaries, policy enforcement,
+        or spending-limit assumptions. Require explicit compatibility notes when account-level
+        policy semantics may drift from upstream session-account behavior.
+    - path: ".github/workflows/**"
+      instructions: |
+        Review for least privilege permissions, pinned actions when feasible, and prevention of
+        untrusted code execution paths in CI.
+
+  pre_merge_checks:
+    custom_checks:
+      - name: "Spec impact declaration"
+        mode: error
+        instructions: |
+          If this PR changes boundary files under apps/mobile/lib/signer/**, contracts/**,
+          docs/**, or .github/workflows/**, the PR description must include a section named
+          "Spec impact" with either:
+          - "Spec impact: none", or
+          - concrete compatibility and migration notes.
+      - name: "Cross-repo boundary awareness"
+        mode: error
+        instructions: |
+          For boundary changes, verify that affected counterpart repos are acknowledged in the PR
+          description: keep-starknet-strange/starknet-agentic and omarespejel/SISNA.
+          If not acknowledged, fail this check.
+      - name: "Security rationale for signer changes"
+        mode: warning
+        instructions: |
+          For changes under apps/mobile/lib/signer/** or contracts/**, require a short security
+          rationale describing threat model impact, not just functional behavior.
+
+chat:
+  auto_reply: false

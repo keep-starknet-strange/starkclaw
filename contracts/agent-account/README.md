@@ -1,6 +1,8 @@
-# AgentAccount (Starknet AA)
+# AgentAccount (Legacy Starknet AA Package)
 
-This package contains the Starkclaw account contract that enforces session-key policies on-chain.
+This package is kept for compatibility, debugging, and migration workflows.
+The canonical production lineage for Starkclaw is `session-account` from
+`keep-starknet-strange/starknet-agentic`.
 
 It is designed around a simple constraint:
 
@@ -8,6 +10,12 @@ It is designed around a simple constraint:
 
 Instead, the user registers one or more session keys with explicit limits, and the contract enforces those limits
 in `__execute__` during transaction execution.
+
+## Status
+
+- Default production path: upstream `session-account` lineage.
+- This package: legacy fallback only.
+- Use only when explicitly required for debug/migration work.
 
 ## Policy Model (MVP)
 
@@ -40,16 +48,23 @@ snforge test
 
 From repo root you can also run `./scripts/contracts/test`.
 
-## Sepolia Declaration
+## Sepolia Declaration (Legacy, Explicitly Gated)
 
-The mobile app deploys by class hash. You must declare the class on Sepolia at least once before deploying instances.
+If you need this legacy package path, declaration is explicitly gated.
 
 From repo root:
 
 ```bash
+ALLOW_LEGACY_AGENT_ACCOUNT=1 \
 STARKNET_DEPLOYER_ADDRESS=0x... \
 STARKNET_DEPLOYER_PRIVATE_KEY=0x... \
 ./scripts/contracts/declare-agent-account
+```
+
+For canonical production declarations, use:
+
+```bash
+./scripts/contracts/declare-session-account
 ```
 
 ## Safety Notes

@@ -1,11 +1,7 @@
 /**
- * SISNA Signer Client Implementation
- *
- * Issue: #54
- * Scope: Groundwork only - NO execution wiring
- *
- * This module provides typed HTTP client for remote session transaction signing.
- * It does NOT wire into actual transfer execution paths (that's in #51).
+ * SISNA signer HTTP client for remote session-transaction signing.
+ * Handles HTTPS enforcement, request validation, typed error mapping,
+ * and response normalization.
  */
 
 import {

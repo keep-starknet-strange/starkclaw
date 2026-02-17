@@ -1,5 +1,5 @@
 import * as React from "react";
-import { KeyboardAvoidingView, ScrollView, Switch, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, ScrollView, Switch, TextInput, View, Pressable, Linking } from "react-native";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -7,6 +7,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useApp } from "@/lib/app/app-provider";
 import { requireOwnerAuth } from "@/lib/security/owner-auth";
+import { loadWallet, type WalletSnapshot } from "@/lib/wallet/wallet";
+import { useTransfer } from "@/lib/agent/use-transfer";
 import { GhostButton, IconButton, PrimaryButton } from "@/ui/buttons";
 import { AppIcon } from "@/ui/app-icon";
 import { Badge } from "@/ui/badge";
@@ -19,10 +21,36 @@ import { AppBackground } from "@/ui/app-background";
 import { Row } from "@/ui/screen";
 import { Body, H1, H2, Muted } from "@/ui/typography";
 
+/** Detect if text is a transfer request */
+function isTransferRequest(text: string): boolean {
+  return /^send\s+\d+/i.test(text.trim());
+}
+
+/** Format address for display */
+function shortenHex(input: string): string {
+  const s = input.trim();
+  if (!s) return s;
+  if (s.length <= 18) return s;
+  if (!s.startsWith("0x")) return s.slice(0, 16) + "…";
+  return `${s.slice(0, 10)}…${s.slice(-6)}`;
+}
+
 export default function AgentScreen() {
   const t = useAppTheme();
   const insets = useSafeAreaInsets();
-  const { state, actions } = useApp();
+  const { state, actions, mode } = useApp();
+  const isLive = mode === "live";
+
+  // Live mode: load wallet and transfer hook
+  const [wallet, setWallet] = React.useState<WalletSnapshot | null>(null);
+  const transfer = useTransfer(isLive ? wallet : null);
+
+  // Load wallet on mount for live mode
+  React.useEffect(() => {
+    if (isLive) {
+      loadWallet().then(setWallet);
+    }
+  }, [isLive]);
 
   const [draft, setDraft] = React.useState("");
 
@@ -46,8 +74,13 @@ export default function AgentScreen() {
             }}
           >
             <Animated.View entering={FadeInDown.duration(420)} style={{ gap: 8 }}>
-              <Muted>Agent</Muted>
-              <H1>Ask, preview, approve</H1>
+              <Row>
+                <View style={{ gap: 4 }}>
+                  <Muted>Agent</Muted>
+                  <H1>Ask, preview, approve</H1>
+                </View>
+                {isLive && <Badge label="Live" tone="good" />}
+              </Row>
             </Animated.View>
 
             <Animated.View entering={FadeInDown.delay(70).duration(420)}>
@@ -147,6 +180,123 @@ export default function AgentScreen() {
               </Animated.View>
             ) : null}
 
+            {/* Live Transfer Preview Card */}
+            {isLive && transfer.phase === "preview" && transfer.action && (
+              <Animated.View entering={FadeInDown.delay(180).duration(420)}>
+                <GlassCard>
+                  <View style={{ gap: 12 }}>
+                    <Row>
+                      <H2>Transfer Preview</H2>
+                      <Badge label="Ready" tone="warn" />
+                    </Row>
+                    
+                    <View style={{ gap: 8 }}>
+                      <Row>
+                        <Muted>Amount</Muted>
+                        <Body style={{ fontFamily: t.font.bodyMedium }}>
+                          {transfer.action.amount} {transfer.action.tokenSymbol}
+                        </Body>
+                      </Row>
+                      <Row>
+                        <Muted>To</Muted>
+                        <Body selectable style={{ fontFamily: t.font.mono, fontSize: 13 }}>
+                          {shortenHex(transfer.action.to)}
+                        </Body>
+                      </Row>
+                      <Row>
+                        <Muted>Policy</Muted>
+                        <Muted>Cap: {transfer.action.policy.spendingLimitBaseUnits}</Muted>
+                      </Row>
+                      <Row>
+                        <Muted>Valid until</Muted>
+                        <Muted>{new Date(transfer.action.policy.validUntil * 1000).toLocaleString()}</Muted>
+                      </Row>
+                    </View>
+
+                    {transfer.action.warnings.length > 0 && (
+                      <View style={{ 
+                        padding: 10, 
+                        borderRadius: t.radius.md, 
+                        backgroundColor: "rgba(255,159,10,0.15)",
+                        borderWidth: 1,
+                        borderColor: "rgba(255,159,10,0.30)"
+                      }}>
+                        <Muted style={{ color: t.colors.warn }}>
+                          ⚠️ {transfer.action.warnings[0]}
+                        </Muted>
+                      </View>
+                    )}
+
+                    <Row style={{ gap: 10 }}>
+                      <PrimaryButton
+                        label="Execute"
+                        onPress={async () => {
+                          await requireOwnerAuth({ reason: "Confirm transfer" });
+                          await transfer.execute();
+                        }}
+                        style={{ flex: 1 }}
+                      />
+                      <GhostButton
+                        label="Cancel"
+                        onPress={() => transfer.reset()}
+                        style={{ flex: 1 }}
+                      />
+                    </Row>
+                  </View>
+                </GlassCard>
+              </Animated.View>
+            )}
+
+            {/* Live Transfer Result Card */}
+            {isLive && (transfer.phase === "done" || transfer.phase === "denied") && (
+              <Animated.View entering={FadeInDown.delay(180).duration(420)}>
+                <GlassCard>
+                  <View style={{ gap: 12 }}>
+                    <Row>
+                      <H2>{transfer.phase === "done" ? "Transfer Sent" : "Transfer Denied"}</H2>
+                      <Badge 
+                        label={transfer.phase === "done" ? "Success" : "Denied"} 
+                        tone={transfer.phase === "done" ? "good" : "danger"} 
+                      />
+                    </Row>
+                    
+                    {transfer.txHash && (
+                      <Pressable onPress={() => {
+                        const explorerUrl = `https://sepolia.starkscan.co/tx/${transfer.txHash}`;
+                        Linking.openURL(explorerUrl);
+                      }}>
+                        <Muted style={{ color: t.colors.accent }}>
+                          📋 {shortenHex(transfer.txHash)} (Tap to view)
+                        </Muted>
+                      </Pressable>
+                    )}
+
+                    {transfer.guidance && (
+                      <View style={{ 
+                        padding: 10, 
+                        borderRadius: t.radius.md, 
+                        backgroundColor: "rgba(255,69,58,0.10)",
+                        borderWidth: 1,
+                        borderColor: "rgba(255,69,58,0.30)"
+                      }}>
+                        <Body style={{ fontFamily: t.font.bodyMedium, color: t.colors.bad }}>
+                          {transfer.guidance.title}
+                        </Body>
+                        <Muted style={{ marginTop: 4 }}>
+                          {transfer.guidance.guidance}
+                        </Muted>
+                      </View>
+                    )}
+
+                    <GhostButton
+                      label="Dismiss"
+                      onPress={() => transfer.reset()}
+                    />
+                  </View>
+                </GlassCard>
+              </Animated.View>
+            )}
+
             <Animated.View entering={FadeInDown.delay(220).duration(420)}>
               <GlassCard>
                 <View style={{ gap: 10 }}>
@@ -203,12 +353,20 @@ export default function AgentScreen() {
                 }}
               />
               <IconButton
-                disabled={!draft.trim()}
-                tone={draft.trim() ? "accent" : "neutral"}
+                disabled={!draft.trim() || transfer.phase === "preparing" || transfer.phase === "executing"}
+                tone={draft.trim() && transfer.phase !== "preparing" && transfer.phase !== "executing" ? "accent" : "neutral"}
                 onPress={async () => {
                   await haptic("tap");
-                  actions.sendAgentMessage(draft);
+                  const text = draft.trim();
                   setDraft("");
+                  
+                  // Live mode: check if it's a transfer request
+                  if (isLive && isTransferRequest(text)) {
+                    await transfer.prepare(text);
+                  } else {
+                    // Demo mode or non-transfer message
+                    actions.sendAgentMessage(text);
+                  }
                 }}
                 icon={<AppIcon ios="arrow.up" fa="arrow-up" color={t.colors.text} size={18} />}
               />

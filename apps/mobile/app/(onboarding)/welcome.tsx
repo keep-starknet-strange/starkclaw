@@ -19,7 +19,7 @@ export default function WelcomeScreen() {
 
   const onReset = React.useCallback(async () => {
     await haptic("warn");
-    actions.reset();
+    await actions.reset();
   }, [actions]);
 
   return (

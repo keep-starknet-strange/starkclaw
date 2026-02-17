@@ -15,6 +15,7 @@ dist/
 build/
 
 # Cairo / Scarb / Starknet Foundry
+target/
 contracts/**/target/
 contracts/**/.snfoundry_cache/
 

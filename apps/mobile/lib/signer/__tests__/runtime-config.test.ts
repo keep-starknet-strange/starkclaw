@@ -49,6 +49,11 @@ describe("runtime-config", () => {
     expect(getSignerMode()).toBe("remote");
   });
 
+  it("returns local signer mode when explicitly configured", () => {
+    process.env.EXPO_PUBLIC_SIGNER_MODE = "local";
+    expect(getSignerMode()).toBe("local");
+  });
+
   it("returns remote signer mode when explicitly configured", () => {
     process.env.EXPO_PUBLIC_SIGNER_MODE = "remote";
     expect(getSignerMode()).toBe("remote");
@@ -57,6 +62,9 @@ describe("runtime-config", () => {
   it("normalizes valid values and rejects unknown values", () => {
     process.env.EXPO_PUBLIC_SIGNER_MODE = "REMOTE ";
     expect(getSignerMode()).toBe("remote");
+  });
+
+  it("throws for unknown signer mode values", () => {
     process.env.EXPO_PUBLIC_SIGNER_MODE = "something-else";
     expect(() => getSignerMode()).toThrowError(
       'Invalid EXPO_PUBLIC_SIGNER_MODE "something-else". Expected "local" or "remote".',

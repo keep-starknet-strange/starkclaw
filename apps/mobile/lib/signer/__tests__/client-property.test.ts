@@ -1,11 +1,6 @@
 /**
- * Property-Based Tests for Signer Client
- *
- * Uses property-based testing to verify invariants hold across
- * a wide range of inputs. Catches edge cases that example-based
- * tests might miss.
- *
- * Issue: #54
+ * Property-based tests for the SISNA signer client.
+ * Verifies validation and mapping invariants across broad input ranges.
  */
 
 import { describe, it, expect, vi } from 'vitest';

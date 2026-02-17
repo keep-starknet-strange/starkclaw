@@ -22,7 +22,7 @@ export async function createAndRegisterSessionKey(params: {
   tokenAddress: string;
   spendingLimit: bigint;
   validForSeconds: number;
-  allowedContract: string;
+  allowedContracts: string[];
 }): Promise<{ session: StoredSessionKey; txHash: string }> {
   await requireOwnerAuth({ reason: "Create session key" });
 
@@ -34,7 +34,7 @@ export async function createAndRegisterSessionKey(params: {
     tokenAddress: params.tokenAddress,
     spendingLimit: params.spendingLimit,
     validForSeconds: params.validForSeconds,
-    allowedContract: params.allowedContract,
+    allowedContracts: params.allowedContracts,
   });
 
   const { txHash } = await registerSessionKeyOnchain({
@@ -46,7 +46,7 @@ export async function createAndRegisterSessionKey(params: {
   await appendActivity({
     networkId: params.wallet.networkId,
     kind: "register_session_key",
-    summary: `Register session key for ${params.tokenSymbol} (cap: ${params.spendingLimit.toString()})`,
+    summary: `Register session key for ${params.tokenSymbol} (cap: ${params.spendingLimit.toString()}, ${params.allowedContracts.length || "any"} targets)`,
     txHash,
     status: "pending",
   });

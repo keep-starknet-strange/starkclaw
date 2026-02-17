@@ -6,13 +6,9 @@ import { callContract } from "../starknet/rpc";
 import { u256FromBigInt } from "../starknet/u256";
 import { secureDelete, secureGet, secureSet } from "../storage/secure-store";
 import type { WalletSnapshot } from "../wallet/wallet";
+import { MAX_ALLOWED_TARGETS, ZERO_ADDRESS, padTargets } from "./target-presets";
 
 const SESSION_KEYS_INDEX_ID = "starkclaw.session_keys.v1";
-const DEFAULT_SESSION_MAX_CALLS = 100;
-const DEFAULT_SPENDING_WINDOW_SECONDS = 86_400;
-const DEFAULT_ALLOWED_ENTRYPOINTS = [
-  hash.getSelectorFromName("transfer"),
-];
 
 function sessionPkStorageKey(sessionPublicKey: string): string {
   return `starkclaw.session_pk.${sessionPublicKey}`;
@@ -28,10 +24,10 @@ export type StoredSessionKey = {
   tokenSymbol: string;
   tokenAddress: string;
   spendingLimit: string; // decimal string in token base units
-  maxCalls?: number; // defaults to DEFAULT_SESSION_MAX_CALLS
   validAfter: number; // unix seconds
   validUntil: number; // unix seconds
-  allowedContract: string;
+  /** Up to 4 allowed contract addresses. Empty array = wildcard (any contract). */
+  allowedContracts: string[];
   createdAt: number; // unix seconds
   registeredAt?: number; // unix seconds
   revokedAt?: number; // unix seconds
@@ -72,7 +68,7 @@ export async function createLocalSessionKey(params: {
   tokenAddress: string;
   spendingLimit: bigint;
   validForSeconds: number;
-  allowedContract: string;
+  allowedContracts: string[];
 }): Promise<StoredSessionKey> {
   const createdAt = nowSec();
   const bytes = await Crypto.getRandomBytesAsync(32);
@@ -89,7 +85,7 @@ export async function createLocalSessionKey(params: {
     spendingLimit: params.spendingLimit.toString(),
     validAfter,
     validUntil,
-    allowedContract: params.allowedContract,
+    allowedContracts: params.allowedContracts.slice(0, MAX_ALLOWED_TARGETS),
     createdAt,
   };
 
@@ -120,32 +116,29 @@ export async function registerSessionKeyOnchain(params: {
     ownerPrivateKey: params.ownerPrivateKey,
   });
 
-  // SessionAccount scopes sessions by entrypoint selectors (not contract address).
-  // Keep default selectors minimal (`transfer` only) and rely on per-token
-  // spending policy for amount bounds.
+  // Pad allowed contracts to exactly 4 slots (filling unused with zero address).
+  const targets = padTargets(params.session.allowedContracts);
+
+  // Call register_session_key(key, SessionPolicy).
+  // SessionPolicy struct fields are serialized in declaration order:
+  //   valid_after, valid_until, spending_limit (u256 = low + high),
+  //   spending_token, allowed_contract_0…3
   const tx = await account.execute([
     {
       contractAddress: params.wallet.accountAddress,
-      entrypoint: "add_or_update_session_key",
+      entrypoint: "register_session_key",
       calldata: [
         params.session.key,
+        // SessionPolicy fields:
+        params.session.validAfter.toString(),
         params.session.validUntil.toString(),
-        (params.session.maxCalls ?? DEFAULT_SESSION_MAX_CALLS).toString(),
-        DEFAULT_ALLOWED_ENTRYPOINTS.length.toString(),
-        ...DEFAULT_ALLOWED_ENTRYPOINTS,
-      ],
-    },
-    {
-      contractAddress: params.wallet.accountAddress,
-      entrypoint: "set_spending_policy",
-      calldata: [
-        params.session.key,
-        params.session.tokenAddress,
-        low,
-        high,
-        low,
-        high,
-        DEFAULT_SPENDING_WINDOW_SECONDS.toString(),
+        low,   // spending_limit.low
+        high,  // spending_limit.high
+        params.session.tokenAddress,  // spending_token
+        targets[0],  // allowed_contract_0
+        targets[1],  // allowed_contract_1
+        targets[2],  // allowed_contract_2
+        targets[3],  // allowed_contract_3
       ],
     },
   ]);

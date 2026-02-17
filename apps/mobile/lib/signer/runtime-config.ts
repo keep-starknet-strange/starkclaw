@@ -32,6 +32,7 @@ export class SignerRuntimeConfigError extends Error {
       | "INVALID_PROXY_URL"
       | "INSECURE_TRANSPORT"
       | "INVALID_REQUESTER"
+      | "INVALID_SIGNER_MODE"
       | "MTLS_REQUIRED"
       | "PINNING_REQUIRED"
       | "INVALID_PINNING_CONFIG"
@@ -81,7 +82,7 @@ export function getSignerMode(): SignerMode {
   }
   if (raw !== "local" && raw !== "remote") {
     throw new SignerRuntimeConfigError(
-      "MISSING_CREDENTIALS",
+      "INVALID_SIGNER_MODE",
       `Invalid EXPO_PUBLIC_SIGNER_MODE "${raw}". Expected "local" or "remote".`,
     );
   }

@@ -1,21 +1,13 @@
 /**
- * API Key Sanitization Security Tests (#66)
- *
- * TDD-first: These tests FAIL until API key sanitization is implemented.
- *
- * Security Issue: H-3 (HIGH)
- * OWASP: API8:2023 Security Misconfiguration
- * CWE: CWE-532 Information Exposure Through Log Files
- *
- * Ensures that bearer tokens and API keys are sanitized from error messages
- * to prevent credential leakage via crash reporting tools (Sentry, Crashlytics).
+ * API key sanitization tests for signer client error handling.
+ * Ensures secrets are redacted from surfaced error messages.
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createSignerClient, SignerClientError, SignerErrorCode } from '../client';
 import type { SignerClientConfig } from '../types';
 
-describe('API Key Sanitization (#66)', () => {
+describe('API Key Sanitization', () => {
   const validRequest = {
     sessionKey: '0xabcdef123456',
     transaction: {

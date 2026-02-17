@@ -17,19 +17,30 @@ on:
       - 'apps/mobile/lib/signer/**'
       - 'scripts/test/signer-client.sh'
       - '.github/workflows/signer-client.yml'
+  merge_group:
+    paths:
+      - 'apps/mobile/lib/signer/**'
+      - 'scripts/test/signer-client.sh'
+      - '.github/workflows/signer-client.yml'
+
+permissions:
+  contents: read
 
 jobs:
   test:
     name: Signer Client Tests
     runs-on: ubuntu-latest
     timeout-minutes: 5 # Fast path - should complete quickly
+    permissions:
+      contents: read
+      id-token: write
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6.0.2
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: 'npm'
@@ -47,7 +58,7 @@ jobs:
         working-directory: apps/mobile
 
       - name: Upload coverage
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           files: apps/mobile/coverage/lcov.info
           flags: signer-client
@@ -57,13 +68,15 @@ jobs:
     name: Lint & Typecheck
     runs-on: ubuntu-latest
     timeout-minutes: 3
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6.0.2
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: 'npm'

@@ -4,6 +4,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import Animated, { FadeInDown } from "react-native-reanimated";
 
 import { useApp } from "@/lib/app/app-provider";
+import { useActivity } from "@/lib/activity/use-activity";
+import { Badge } from "@/ui/badge";
 import { AppIcon } from "@/ui/app-icon";
 import { Chip } from "@/ui/chip";
 import { Divider } from "@/ui/divider";
@@ -16,8 +18,11 @@ import { Body, H1, H2, Muted } from "@/ui/typography";
 type InboxTab = "alerts" | "activity";
 
 export default function InboxScreen() {
-  const { state, actions } = useApp();
+  const { state, actions, mode } = useApp();
   const [tab, setTab] = React.useState<InboxTab>("alerts");
+  
+  // In live mode, use real activity with tx status
+  const realActivity = useActivity(mode === "live");
 
   const unread = state.alerts.filter((a) => !a.read).length;
 
@@ -84,9 +89,29 @@ export default function InboxScreen() {
               </View>
             ) : (
               <View style={{ gap: 10 }}>
-                {state.activity.map((it) => (
-                  <ActivityRow key={it.id} title={it.title} subtitle={it.subtitle ?? ""} when={timeAgo(it.createdAt)} meta={it.meta ?? ""} />
-                ))}
+                {mode === "live" ? (
+                  realActivity.map((it) => (
+                    <ActivityRow 
+                      key={it.id} 
+                      title={it.summary || "Transaction"} 
+                      subtitle={it.kind} 
+                      when={timeAgo(it.createdAt)} 
+                      meta={it.txHash ? `TX: ${it.txHash.slice(0, 10)}...` : ""}
+                      status={it.status}
+                      revertReason={it.revertReason}
+                    />
+                  ))
+                ) : (
+                  state.activity.map((it) => (
+                    <ActivityRow 
+                      key={it.id} 
+                      title={it.title} 
+                      subtitle={it.subtitle ?? ""} 
+                      when={timeAgo(it.createdAt)} 
+                      meta={it.meta ?? ""}
+                    />
+                  ))
+                )}
               </View>
             )}
           </View>
@@ -181,16 +206,24 @@ function AlertRow(props: { title: string; body: string; read: boolean; when: str
   );
 }
 
-function ActivityRow(props: { title: string; subtitle: string; when: string; meta: string }) {
+function ActivityRow(props: { title: string; subtitle: string; when: string; meta: string; status?: string; revertReason?: string | null }) {
   const t = useAppTheme();
+  
+  const statusTone = props.status === "succeeded" ? "good" : props.status === "reverted" ? "danger" : props.status === "pending" ? "warn" : "neutral";
+  const statusLabel = props.status === "succeeded" ? "Succeeded" : props.status === "reverted" ? "Reverted" : props.status === "pending" ? "Pending" : props.status === "unknown" ? "Unknown" : null;
+  
   return (
     <View style={{ gap: 6 }}>
       <Row>
-        <Body style={{ fontFamily: t.font.bodyMedium }}>{props.title}</Body>
+        <Body style={{ fontFamily: t.font.bodyMedium, flex: 1 }}>{props.title}</Body>
+        {statusLabel && <Badge label={statusLabel} tone={statusTone} />}
         <Muted>{props.when}</Muted>
       </Row>
       {props.subtitle ? <Muted>{props.subtitle}</Muted> : null}
       {props.meta ? <Muted style={{ color: t.colors.muted }}>{props.meta}</Muted> : null}
+      {props.revertReason ? (
+        <Muted style={{ color: t.colors.bad, fontSize: 12 }}>⚠️ {props.revertReason}</Muted>
+      ) : null}
       <Divider />
     </View>
   );
