@@ -7,50 +7,140 @@ reviews:
   request_changes_workflow: true
   high_level_summary: true
   review_status: true
-  collapse_walkthrough: true
+  review_details: true
+  collapse_walkthrough: false
+  changed_files_summary: true
   poem: false
   fail_commit_status: true
   auto_review:
     enabled: true
     drafts: false
+    auto_incremental_review: true
+    auto_pause_after_reviewed_commits: 0
 
   path_instructions:
     - path: "apps/mobile/lib/signer/**"
-      instructions: |
-        Treat signer boundary changes as security-critical.
+      instructions: >
+        Treat signer boundary changes as wallet-grade security-critical code.
         Verify strict input validation, fail-closed behavior, timeout handling, replay/auth checks,
         and parity with SISNA API envelope and starknet-agentic session-signature semantics.
+        Session key generation MUST use cryptographically secure randomness.
+        All signing operations MUST validate session key scope before execution.
+        Private key material MUST never be logged, serialized, or exposed in error messages.
+        Session key expiry and revocation MUST be enforced at the signer level.
     - path: "contracts/**"
-      instructions: |
+      instructions: >
         Flag any change that can alter session-key authority boundaries, policy enforcement,
         or spending-limit assumptions. Require explicit compatibility notes when account-level
         policy semantics may drift from upstream session-account behavior.
+        Every external/public function MUST have explicit access control checks.
+        Policy guardrails MUST be validated on-chain before delegation execution.
+        Session account isolation MUST prevent cross-session state leakage.
+        All felt252 conversions MUST be bounds-checked to prevent overflow.
+        Reentrancy guards MUST be present on all state-modifying functions.
+        Delegate call patterns MUST validate target contract whitelist.
+    - path: "contracts/**/*.cairo"
+      instructions: >
+        Enforce strict Cairo security patterns. Flag missing access control on external functions,
+        unchecked felt252 arithmetic that can overflow, reentrancy vulnerabilities, and unsafe
+        storage access patterns. Verify that all state-modifying functions have proper authorization
+        guards. Flag any delegate call without target whitelist validation. Reject any pattern
+        that allows unbounded iteration or gas-unbounded computation.
     - path: ".github/workflows/**"
-      instructions: |
-        Review for least privilege permissions, pinned actions when feasible, and prevention of
-        untrusted code execution paths in CI.
+      instructions: >
+        Ensure least-privilege permissions and safe CI execution patterns. Flag any workflow
+        with write permissions that doesn't strictly need them. Verify secrets are not exposed
+        in logs or artifacts. Dependency actions must use pinned SHA versions, not tags.
+        Flag any new workflow trigger that could be exploited via pull_request_target.
+    - path: "docs/**"
+      instructions: >
+        Security documentation must accurately reflect the current implementation.
+        Flag any discrepancy between documented and actual wallet behavior. API docs must
+        include authentication and authorization requirements. Delegation boundary docs
+        must cover all session key lifecycle states.
+    - path: "scripts/**"
+      instructions: >
+        Flag any script that runs with elevated privileges without justification.
+        Verify input sanitization in deployment scripts. Flag hardcoded credentials,
+        private keys, URLs, or environment-specific assumptions. Deployment scripts
+        touching wallet contracts require explicit security sign-off documentation.
+    - path: "spec/**"
+      instructions: >
+        Spec changes define wallet behavioral contracts and delegation boundaries.
+        Flag any spec change not accompanied by corresponding implementation updates.
+        Verify backward compatibility claims. Spec changes affecting session key
+        semantics or policy guardrails require cross-repo impact assessment.
+    - path: "apps/mobile/**"
+      instructions: >
+        Review mobile app changes for secure storage patterns. Flag any plaintext
+        storage of sensitive data, insecure key derivation, missing certificate pinning,
+        or biometric auth bypass vectors. Verify proper error handling that doesn't
+        leak wallet state to UI layer.
 
   pre_merge_checks:
+    title:
+      mode: "warning"
+      requirements: >
+        Use a clear scope prefix naming the touched subsystem
+        (signer/contracts/docs/security/ci/mobile) and summarize the behavioral impact.
+    description:
+      mode: "warning"
+    issue_assessment:
+      mode: "warning"
     custom_checks:
       - name: "Spec impact declaration"
-        mode: error
-        instructions: |
+        mode: "error"
+        instructions: >
           If this PR changes boundary files under apps/mobile/lib/signer/**, contracts/**,
           docs/**, or .github/workflows/**, the PR description must include a section named
-          "Spec impact" with either:
-          - "Spec impact: none", or
-          - concrete compatibility and migration notes.
+          "Spec impact" with either "Spec impact: none" or concrete compatibility and
+          migration notes. Fail if the section is missing for qualifying paths.
       - name: "Cross-repo boundary awareness"
-        mode: error
-        instructions: |
-          For boundary changes, verify that affected counterpart repos are acknowledged in the PR
-          description: keep-starknet-strange/starknet-agentic and omarespejel/SISNA.
-          If not acknowledged, fail this check.
+        mode: "error"
+        instructions: >
+          For boundary changes, verify that affected counterpart repos are acknowledged:
+          keep-starknet-strange/starknet-agentic and omarespejel/SISNA.
+          If contracts/** or apps/mobile/lib/signer/** are changed, the PR must declare
+          cross-repo impact or explicitly state "no cross-repo impact".
       - name: "Security rationale for signer changes"
-        mode: warning
-        instructions: |
-          For changes under apps/mobile/lib/signer/** or contracts/**, require a short security
-          rationale describing threat model impact, not just functional behavior.
+        mode: "error"
+        instructions: >
+          For changes under apps/mobile/lib/signer/** or contracts/**, require a concise
+          security rationale describing threat model impact, not just functional behavior.
+          This is a blocking check — no signer or contract changes merge without documented
+          security reasoning. Must mention invariants preserved or changed.
+      - name: "Delegation boundary safety gate"
+        mode: "error"
+        instructions: >
+          For changes in contracts/** that affect session key authority, policy enforcement,
+          or spending limits, verify that delegation boundaries are explicitly documented.
+          Flag any change that could allow session key scope escalation or policy bypass.
+          Fail if delegation safety is not addressed in the PR description.
+      - name: "Cairo contract safety gate"
+        mode: "error"
+        instructions: >
+          For changes in contracts/**/*.cairo, verify that all external/public
+          functions have explicit access control. Flag any new storage variable
+          without initialization guard. Verify felt252 operations are bounds-checked.
+          Fail if unsafe patterns are detected without mitigation documentation.
+      - name: "CI/CD security gate"
+        mode: "warning"
+        instructions: >
+          For changes in .github/workflows/**, flag any new or expanded permissions,
+          unpinned action versions, or secrets referenced without need-to-know scope.
+      - name: "Mobile key material safety"
+        mode: "error"
+        instructions: >
+          For changes in apps/mobile/**, flag any code that stores private keys or
+          session keys in plaintext, logs sensitive material, or transmits key material
+          over insecure channels. Verify that all key storage uses platform secure
+          enclave or keychain APIs.
+
+tools:
+  opengrep:
+    enabled: true
+  trufflehog:
+    enabled: true
 
 chat:
-  auto_reply: false
+  auto_reply: true
