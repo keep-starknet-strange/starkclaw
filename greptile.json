@@ -1,13 +1,54 @@
 {
   "reviewProfile": "security-focused",
+  "strictness": 2,
   "focus": [
     "security",
     "cross-repo-compatibility",
-    "architecture"
+    "architecture",
+    "wallet-safety",
+    "delegation-boundaries"
   ],
   "patternRepositories": [
     "keep-starknet-strange/starknet-agentic",
-    "omarespejel/SISNA"
+    "omarespejel/SISMA"
+  ],
+  "scopedRules": [
+    {
+      "path": "apps/mobile/lib/signer/**",
+      "rules": [
+        "Session key generation MUST use cryptographically secure randomness",
+        "All signing operations MUST validate session key scope before execution",
+        "Private key material MUST never be logged, serialized, or exposed in error messages",
+        "Session key expiry and revocation MUST be enforced at the signer level"
+      ]
+    },
+    {
+      "path": "contracts/**",
+      "rules": [
+        "Every external/public function MUST have explicit access control checks",
+        "Policy guardrails MUST be validated on-chain before delegation execution",
+        "Session account isolation MUST prevent cross-session state leakage",
+        "All felt252 conversions MUST be bounds-checked to prevent overflow",
+        "Reentrancy guards MUST be present on all state-modifying functions",
+        "Delegate call patterns MUST validate target contract whitelist"
+      ]
+    },
+    {
+      "path": ".github/workflows/**",
+      "rules": [
+        "CI must not expose secrets in logs or artifacts",
+        "All workflow triggers must be scoped to prevent unauthorized execution",
+        "Dependency pinning must use exact versions or SHA hashes"
+      ]
+    },
+    {
+      "path": "docs/**",
+      "rules": [
+        "Security documentation must accurately reflect current implementation",
+        "Audit trail documentation must cover all delegation boundaries",
+        "API documentation must include authentication and authorization requirements"
+      ]
+    }
   ],
   "paths": {
     "include": [
