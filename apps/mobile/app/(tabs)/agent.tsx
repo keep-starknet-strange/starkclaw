@@ -466,8 +466,10 @@ export default function AgentScreen() {
                       await chatActions.sendMessage(text);
                     } catch (err) {
                       await haptic("error");
+                      setDraft(text);
                       const name = err instanceof Error ? err.name : "UnknownError";
-                      console.warn("Chat send error", { name });
+                      const message = err instanceof Error ? err.message : String(err);
+                      console.warn("Chat send error", { name, message });
                     }
                   } else {
                     // Demo mode or non-transfer message

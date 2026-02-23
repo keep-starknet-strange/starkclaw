@@ -93,6 +93,32 @@ function toSafeUserError(err: unknown): string {
   return "An unexpected error occurred. Please try again.";
 }
 
+function safeSerializeToolResult(data: unknown): string {
+  try {
+    const seen = new WeakSet<object>();
+    const json = JSON.stringify(
+      data,
+      (_, value) => {
+        if (typeof value === "function" || typeof value === "symbol") {
+          return undefined;
+        }
+        if (value && typeof value === "object") {
+          const obj = value as object;
+          if (seen.has(obj)) {
+            return "[Circular]";
+          }
+          seen.add(obj);
+        }
+        return value;
+      }
+    );
+    const out = json ?? String(data);
+    return out.length > 20_000 ? `${out.slice(0, 20_000)}...[truncated]` : out;
+  } catch {
+    return "[unserializable tool result]";
+  }
+}
+
 /**
  * Live implementation that uses real LLM with streaming
  */
@@ -108,6 +134,7 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
   const streamingRef = React.useRef<ChatStream | null>(null);
   const messagesRef = React.useRef<ChatMessage[]>([]);
   const isRespondingRef = React.useRef(false);
+  const sendInFlightRef = React.useRef(false);
   
   // Check for API key on mount
   React.useEffect(() => {
@@ -127,9 +154,11 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
   const cancelResponse = React.useCallback(() => {
     if (streamingRef.current) {
       streamingRef.current.cancel();
+      streamingRef.current = null;
     }
     if (abortRef.current) {
       abortRef.current();
+      abortRef.current = null;
     }
     setState((s) => ({
       ...s,
@@ -137,6 +166,7 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
       messages: s.messages.map((m) => ({ ...m, isStreaming: false })),
     }));
     isRespondingRef.current = false;
+    sendInFlightRef.current = false;
   }, []);
 
   const clearHistory = React.useCallback(() => {
@@ -151,8 +181,9 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
 
   const sendMessage = React.useCallback(async (text: string) => {
     const trimmed = text.trim();
-    if (!trimmed || isRespondingRef.current) return;
+    if (!trimmed || isRespondingRef.current || sendInFlightRef.current) return;
     isRespondingRef.current = true;
+    sendInFlightRef.current = true;
 
     // Add user message
     const userMsg: ChatMessage = {
@@ -162,13 +193,12 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
       createdAt: Date.now(),
     };
 
-    let allMessages: ChatMessage[] = [];
     setState((s) => {
-      allMessages = [...s.messages, userMsg];
-      messagesRef.current = allMessages;
+      const nextMessages = [...s.messages, userMsg];
+      messagesRef.current = nextMessages;
       return {
         ...s,
-        messages: allMessages,
+        messages: nextMessages,
         isResponding: true,
         error: undefined,
       };
@@ -214,7 +244,7 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
       }));
 
       // Build conversation messages including current user input
-      const llmMessages = messageToLlmFormat(allMessages);
+      const llmMessages = messageToLlmFormat(messagesRef.current);
 
       // Get tool definitions for LLM
       const toolDefs: OpenAITool[] = [
@@ -360,7 +390,7 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
 
           const result = await executeTool(tc.name, tc.arguments);
           const resultStr = result.ok 
-            ? JSON.stringify(result.data) 
+            ? safeSerializeToolResult(result.data)
             : `Error: ${result.error}`;
           
           toolResults.push({
@@ -459,7 +489,13 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
         error: toSafeUserError(err),
       }));
     } finally {
+      if (streamingRef.current) {
+        streamingRef.current.cancel();
+      }
+      streamingRef.current = null;
+      abortRef.current = null;
       isRespondingRef.current = false;
+      sendInFlightRef.current = false;
     }
   }, []);
 
