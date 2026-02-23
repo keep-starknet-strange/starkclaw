@@ -38,8 +38,8 @@ function shortenHex(input: string): string {
 
 /** Keys that are actual secrets (always redact) */
 const SENSITIVE_SECRET_KEYS = [
-  "privateKey", "private_key", "secret", "apiKey", "api_key", 
-  "secretKey", "mnemonic", "seed", "password",
+  "privatekey", "private_key", "secret", "apikey", "api_key",
+  "secretkey", "mnemonic", "seed", "password",
 ];
 
 /** Keys that may contain sensitive data (redact only in secure context) */

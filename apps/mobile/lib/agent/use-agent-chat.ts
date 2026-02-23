@@ -79,6 +79,7 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
   
   const abortRef = React.useRef<(() => void) | null>(null);
   const streamingRef = React.useRef<ChatStream | null>(null);
+  const messagesRef = React.useRef<ChatMessage[]>([]);
   
   // Check for API key on mount
   React.useEffect(() => {
@@ -86,6 +87,10 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
       setState((s) => ({ ...s, hasApiKey: has }));
     });
   }, []);
+
+  React.useEffect(() => {
+    messagesRef.current = state.messages;
+  }, [state.messages]);
 
   const cancelResponse = React.useCallback(() => {
     if (streamingRef.current) {
@@ -170,7 +175,7 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
       }));
 
       // Build conversation messages including current user input
-      const allMessages = [...state.messages, userMsg];
+      const allMessages = [...messagesRef.current, userMsg];
       const llmMessages = messageToLlmFormat(allMessages);
 
       // Helper to call LLM with current messages
@@ -382,16 +387,17 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
         isResponding: false,
       }));
 
-    } catch (err) {
-      // Log raw error to console for debugging, but show sanitized message to user
-      console.error("Agent chat error:", err);
+    } catch {
+      // Log only non-sensitive context; avoid leaking raw payloads.
+      console.warn("Agent chat error");
       setState((s) => ({
         ...s,
         isResponding: false,
+        messages: s.messages.map((m) => ({ ...m, isStreaming: false })),
         error: "An unexpected error occurred. Please try again.",
       }));
     }
-  }, [state.messages, state.isResponding]);
+  }, [state.isResponding]);
 
   return [
     state,
