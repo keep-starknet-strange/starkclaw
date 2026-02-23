@@ -58,7 +58,8 @@ Available tools:
 
 Security rules:
 - Never claim to execute transfers directly.
-- For transfers or balance-sensitive actions (including balances/prepare), explain that manual approval is required in the Transfer tab.
+- execute_transfer requires explicit manual approval in the Transfer tab.
+- Read-only tools (get_balances, prepare_transfer, estimate_fee) can be executed automatically.
 - Use tools only within the approved execution policy.`;
 
 function messageToLlmFormat(messages: ChatMessage[]): LlmMessage[] {
@@ -68,8 +69,8 @@ function messageToLlmFormat(messages: ChatMessage[]): LlmMessage[] {
   }));
 }
 
-const READ_ONLY_TOOLS = new Set(["get_balances", "estimate_fee"]);
-const AUTO_EXECUTABLE_TOOLS = new Set(["estimate_fee"]);
+const READ_ONLY_TOOLS = new Set(["get_balances", "prepare_transfer", "estimate_fee"]);
+const AUTO_EXECUTABLE_TOOLS = new Set(["get_balances", "prepare_transfer", "estimate_fee"]);
 
 function isReadOnlyTool(name: string): boolean {
   return READ_ONLY_TOOLS.has(name);
@@ -172,10 +173,6 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
         error: undefined,
       };
     });
-    if (allMessages.length === 0) {
-      allMessages = [...messagesRef.current, userMsg];
-      messagesRef.current = allMessages;
-    }
 
     try {
       // Check for API key
@@ -347,7 +344,7 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
         for (const tc of currentToolCalls) {
           if (!AUTO_EXECUTABLE_TOOLS.has(tc.name)) {
             const blockedResult =
-              "Blocked: this tool requires manual approval. Use the Transfer tab to run balance-sensitive or write operations.";
+              "Blocked: this tool requires manual approval. Use the Transfer tab to run write operations.";
             toolResults.push({
               tool_call_id: tc.id,
               content: blockedResult,
