@@ -131,10 +131,14 @@ export async function registerSessionKeyOnchain(params: {
       "Only entrypoint selectors are enforced on-chain. Remove allowedContracts or use a future API version."
     );
   }
-  
-  // Note: spendingLimit and tokenAddress are stored locally for UI display purposes.
-  // They are NOT sent to the on-chain session-account contract (separate spending policy API required).
-  // Future: call set_spending_policy() after add_or_update_session_key to enforce on-chain.
+
+  // Note: spendingLimit and tokenAddress are local policy fields (UI/runtime checks).
+  // They are not part of add_or_update_session_key calldata.
+  if (params.session.spendingLimit !== "0" || params.session.tokenAddress !== "") {
+    console.warn(
+      "[session-keys] spendingLimit/tokenAddress are local-only in this API version and are not enforced on-chain",
+    );
+  }
   
   const allowedEntrypoints = buildAllowedEntrypoints();
 
