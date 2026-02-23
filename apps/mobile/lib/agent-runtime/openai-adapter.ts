@@ -247,12 +247,24 @@ export function createOpenAiProvider(apiKey: string): LlmProvider {
       const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
       const abortController = new AbortController();
 
-      const messages = [
-        ...(opts.systemPrompt
-          ? [{ role: "system" as const, content: opts.systemPrompt }]
-          : []),
-        ...opts.messages.map((m) => ({ role: m.role, content: m.content })),
-      ];
+      const messages: Array<Record<string, unknown>> = [];
+      if (opts.systemPrompt) {
+        messages.push({ role: "system", content: opts.systemPrompt });
+      }
+      for (const m of opts.messages) {
+        if (m.role === "tool") {
+          if (!m.toolCallId) {
+            throw new ProviderError("Tool message missing tool_call_id", "");
+          }
+          messages.push({
+            role: "tool",
+            content: m.content,
+            tool_call_id: m.toolCallId,
+          });
+          continue;
+        }
+        messages.push({ role: m.role, content: m.content });
+      }
 
       const body: Record<string, unknown> = {
         model,

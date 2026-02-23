@@ -66,6 +66,29 @@ function messageToLlmFormat(messages: ChatMessage[]): LlmMessage[] {
   }));
 }
 
+const READ_ONLY_TOOLS = new Set(["get_balances", "prepare_transfer", "estimate_fee"]);
+
+function isReadOnlyTool(name: string): boolean {
+  return READ_ONLY_TOOLS.has(name);
+}
+
+function toSafeUserError(err: unknown): string {
+  if (!(err instanceof Error)) {
+    return "An unexpected error occurred. Please try again.";
+  }
+  const msg = err.message.toLowerCase();
+  if (msg.includes("manual approval")) {
+    return err.message;
+  }
+  if (msg.includes("timeout")) {
+    return "Request timed out. Please try again.";
+  }
+  if (msg.includes("network")) {
+    return "Network error. Please check your connection and retry.";
+  }
+  return "An unexpected error occurred. Please try again.";
+}
+
 /**
  * Live implementation that uses real LLM with streaming
  */
@@ -80,6 +103,7 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
   const abortRef = React.useRef<(() => void) | null>(null);
   const streamingRef = React.useRef<ChatStream | null>(null);
   const messagesRef = React.useRef<ChatMessage[]>([]);
+  const isRespondingRef = React.useRef(false);
   
   // Check for API key on mount
   React.useEffect(() => {
@@ -91,6 +115,10 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
   React.useEffect(() => {
     messagesRef.current = state.messages;
   }, [state.messages]);
+
+  React.useEffect(() => {
+    isRespondingRef.current = state.isResponding;
+  }, [state.isResponding]);
 
   const cancelResponse = React.useCallback(() => {
     if (streamingRef.current) {
@@ -104,6 +132,7 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
       isResponding: false,
       messages: s.messages.map((m) => ({ ...m, isStreaming: false })),
     }));
+    isRespondingRef.current = false;
   }, []);
 
   const clearHistory = React.useCallback(() => {
@@ -118,7 +147,8 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
 
   const sendMessage = React.useCallback(async (text: string) => {
     const trimmed = text.trim();
-    if (!trimmed || state.isResponding) return;
+    if (!trimmed || isRespondingRef.current) return;
+    isRespondingRef.current = true;
 
     // Add user message
     const userMsg: ChatMessage = {
@@ -127,6 +157,9 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
       text: trimmed,
       createdAt: Date.now(),
     };
+
+    const allMessages = [...messagesRef.current, userMsg];
+    messagesRef.current = allMessages;
 
     setState((s) => ({
       ...s,
@@ -175,7 +208,6 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
       }));
 
       // Build conversation messages including current user input
-      const allMessages = [...messagesRef.current, userMsg];
       const llmMessages = messageToLlmFormat(allMessages);
 
       // Helper to call LLM with current messages
@@ -278,8 +310,7 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
           const tc = chunk.toolCall;
           currentToolCalls.push(tc);
           
-          // Derive operationType from tool name - get_balances is read-only
-          const isReadOnly = tc.name === "get_balances";
+          const operationType: "read" | "write" = isReadOnlyTool(tc.name) ? "read" : "write";
           
           // Add tool call to state
           const toolCallEntry: ToolCall = {
@@ -287,7 +318,7 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
             toolName: tc.name,
             params: tc.arguments,
             timestamp: new Date().toISOString(),
-            operationType: isReadOnly ? "read" : "write",
+            operationType,
             status: "pending",
           };
           
@@ -305,6 +336,22 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
         const toolResults: { tool_call_id: string; content: string }[] = [];
 
         for (const tc of currentToolCalls) {
+          if (!isReadOnlyTool(tc.name)) {
+            const blockedResult =
+              "Blocked: write tools require manual approval. Use the Transfer tab to execute transactions.";
+            toolResults.push({
+              tool_call_id: tc.id,
+              content: blockedResult,
+            });
+            setState((s) => ({
+              ...s,
+              toolCalls: s.toolCalls.map((t) =>
+                t.id === tc.id ? { ...t, result: blockedResult, status: "error" } : t
+              ),
+            }));
+            continue;
+          }
+
           const result = await executeTool(tc.name, tc.arguments);
           const resultStr = result.ok 
             ? JSON.stringify(result.data) 
@@ -387,17 +434,20 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
         isResponding: false,
       }));
 
-    } catch {
+    } catch (err) {
       // Log only non-sensitive context; avoid leaking raw payloads.
-      console.warn("Agent chat error");
+      const name = err instanceof Error ? err.name : "UnknownError";
+      console.warn("Agent chat error", { name });
       setState((s) => ({
         ...s,
         isResponding: false,
         messages: s.messages.map((m) => ({ ...m, isStreaming: false })),
-        error: "An unexpected error occurred. Please try again.",
+        error: toSafeUserError(err),
       }));
+    } finally {
+      isRespondingRef.current = false;
     }
-  }, [state.isResponding]);
+  }, []);
 
   return [
     state,
