@@ -267,14 +267,7 @@ export function createOpenAiProvider(apiKey: string): LlmProvider {
           messages.push({
             role: "assistant",
             content: m.content,
-            tool_calls: m.toolCalls.map((tc) => ({
-              id: tc.id,
-              type: "function",
-              function: {
-                name: tc.name,
-                arguments: JSON.stringify(tc.arguments ?? {}),
-              },
-            })),
+            tool_calls: m.toolCalls,
           });
           continue;
         }

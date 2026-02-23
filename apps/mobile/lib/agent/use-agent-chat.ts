@@ -48,7 +48,7 @@ type AgentChatActions = {
 /**
  * System prompt for the agent
  */
-const AGENT_SYSTEM_PROMPT = `You are Starkclaw, an AI agent for Starknet. You help users manage their wallet and estimate operations.
+const AGENT_SYSTEM_PROMPT = `You are Starkclaw, an AI agent for Starknet. You help users with safe Starknet planning.
 
 Available tools:
 - get_balances: Read ERC-20 balances (ETH, USDC, STRK)
@@ -58,7 +58,7 @@ Available tools:
 
 Security rules:
 - Never claim to execute transfers directly.
-- For transfers or balance-sensitive actions, explain that user approval is required in the Transfer tab.
+- For transfers or balance-sensitive actions (including balances/prepare), explain that manual approval is required in the Transfer tab.
 - Use tools only within the approved execution policy.`;
 
 function messageToLlmFormat(messages: ChatMessage[]): LlmMessage[] {
@@ -68,7 +68,7 @@ function messageToLlmFormat(messages: ChatMessage[]): LlmMessage[] {
   }));
 }
 
-const READ_ONLY_TOOLS = new Set(["get_balances", "prepare_transfer", "estimate_fee"]);
+const READ_ONLY_TOOLS = new Set(["get_balances", "estimate_fee"]);
 const AUTO_EXECUTABLE_TOOLS = new Set(["estimate_fee"]);
 
 function isReadOnlyTool(name: string): boolean {
@@ -219,16 +219,6 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
       // Build conversation messages including current user input
       const llmMessages = messageToLlmFormat(allMessages);
 
-      // Helper to call LLM with current messages
-      const callLlm = async (msgs: LlmMessage[], tools?: OpenAITool[]) => {
-        return provider.streamChat({
-          model: "gpt-4o-mini",
-          systemPrompt: AGENT_SYSTEM_PROMPT,
-          messages: msgs,
-          tools: (tools && tools.length > 0) ? tools : toolDefs,
-        });
-      };
-
       // Get tool definitions for LLM
       const toolDefs: OpenAITool[] = [
         {
@@ -292,6 +282,16 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
           },
         },
       ];
+
+      // Helper to call LLM with current messages
+      const callLlm = async (msgs: LlmMessage[], tools?: OpenAITool[]) => {
+        return provider.streamChat({
+          model: "gpt-4o-mini",
+          systemPrompt: AGENT_SYSTEM_PROMPT,
+          messages: msgs,
+          tools: (tools && tools.length > 0) ? tools : toolDefs,
+        });
+      };
 
       // Initial LLM call with tools
       let stream = await callLlm(llmMessages, toolDefs);
@@ -386,7 +386,14 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
         const toolContextMsg: LlmMessage = {
           role: "assistant",
           content: fullText || "Using tools...",
-          toolCalls: currentToolCalls,
+          toolCalls: currentToolCalls.map((tc) => ({
+            id: tc.id,
+            type: "function" as const,
+            function: {
+              name: tc.name,
+              arguments: JSON.stringify(tc.arguments ?? {}),
+            },
+          })),
         };
 
         // Add tool result messages
