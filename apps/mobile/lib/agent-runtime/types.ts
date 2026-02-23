@@ -11,10 +11,17 @@
 
 export type ChatRole = "system" | "user" | "assistant" | "tool";
 
+export type AssistantToolCall = {
+  id: string;
+  name: string;
+  arguments: Record<string, unknown>;
+};
+
 export type ChatMessage = {
   role: ChatRole;
   content: string;
   toolCallId?: string;
+  toolCalls?: AssistantToolCall[];
 };
 
 // ---------------------------------------------------------------------------

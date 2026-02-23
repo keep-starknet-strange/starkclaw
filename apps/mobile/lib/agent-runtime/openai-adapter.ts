@@ -263,6 +263,21 @@ export function createOpenAiProvider(apiKey: string): LlmProvider {
           });
           continue;
         }
+        if (m.role === "assistant" && Array.isArray(m.toolCalls) && m.toolCalls.length > 0) {
+          messages.push({
+            role: "assistant",
+            content: m.content,
+            tool_calls: m.toolCalls.map((tc) => ({
+              id: tc.id,
+              type: "function",
+              function: {
+                name: tc.name,
+                arguments: JSON.stringify(tc.arguments ?? {}),
+              },
+            })),
+          });
+          continue;
+        }
         messages.push({ role: m.role, content: m.content });
       }
 

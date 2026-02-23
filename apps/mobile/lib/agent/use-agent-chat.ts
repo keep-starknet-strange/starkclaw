@@ -48,16 +48,18 @@ type AgentChatActions = {
 /**
  * System prompt for the agent
  */
-const AGENT_SYSTEM_PROMPT = `You are Starkclaw, an AI agent for Starknet. You help users manage their wallet, check balances, and execute transfers.
+const AGENT_SYSTEM_PROMPT = `You are Starkclaw, an AI agent for Starknet. You help users manage their wallet and estimate operations.
 
 Available tools:
 - get_balances: Read ERC-20 balances (ETH, USDC, STRK)
 - prepare_transfer: Validate and prepare a transfer without executing
 - estimate_fee: Estimate gas fees
-- execute_transfer: Execute a transfer using session signing
+- execute_transfer: Requires manual user approval in the Transfer tab
 
-When asked to check balances or transfer tokens, use the appropriate tool.
-Always confirm before executing transfers.`;
+Security rules:
+- Never claim to execute transfers directly.
+- For transfers or balance-sensitive actions, explain that user approval is required in the Transfer tab.
+- Use tools only within the approved execution policy.`;
 
 function messageToLlmFormat(messages: ChatMessage[]): LlmMessage[] {
   return messages.map((m) => ({
@@ -67,6 +69,7 @@ function messageToLlmFormat(messages: ChatMessage[]): LlmMessage[] {
 }
 
 const READ_ONLY_TOOLS = new Set(["get_balances", "prepare_transfer", "estimate_fee"]);
+const AUTO_EXECUTABLE_TOOLS = new Set(["estimate_fee"]);
 
 function isReadOnlyTool(name: string): boolean {
   return READ_ONLY_TOOLS.has(name);
@@ -158,15 +161,21 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
       createdAt: Date.now(),
     };
 
-    const allMessages = [...messagesRef.current, userMsg];
-    messagesRef.current = allMessages;
-
-    setState((s) => ({
-      ...s,
-      messages: [...s.messages, userMsg],
-      isResponding: true,
-      error: undefined,
-    }));
+    let allMessages: ChatMessage[] = [];
+    setState((s) => {
+      allMessages = [...s.messages, userMsg];
+      messagesRef.current = allMessages;
+      return {
+        ...s,
+        messages: allMessages,
+        isResponding: true,
+        error: undefined,
+      };
+    });
+    if (allMessages.length === 0) {
+      allMessages = [...messagesRef.current, userMsg];
+      messagesRef.current = allMessages;
+    }
 
     try {
       // Check for API key
@@ -336,9 +345,9 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
         const toolResults: { tool_call_id: string; content: string }[] = [];
 
         for (const tc of currentToolCalls) {
-          if (!isReadOnlyTool(tc.name)) {
+          if (!AUTO_EXECUTABLE_TOOLS.has(tc.name)) {
             const blockedResult =
-              "Blocked: write tools require manual approval. Use the Transfer tab to execute transactions.";
+              "Blocked: this tool requires manual approval. Use the Transfer tab to run balance-sensitive or write operations.";
             toolResults.push({
               tool_call_id: tc.id,
               content: blockedResult,
@@ -377,6 +386,7 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
         const toolContextMsg: LlmMessage = {
           role: "assistant",
           content: fullText || "Using tools...",
+          toolCalls: currentToolCalls,
         };
 
         // Add tool result messages
