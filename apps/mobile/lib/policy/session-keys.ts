@@ -14,7 +14,9 @@ const SESSION_KEYS_INDEX_ID = "starkclaw.session_keys.v1";
 export const DEFAULT_MAX_CALLS = 100;
 
 /** Common entrypoint names allowed for session keys. */
-export const COMMON_ENTRYPOINTS = ["transfer", "transferFrom", "swap", "execute"] as const;
+// Keep the default selector list minimal. `execute` is intentionally excluded
+// because it can become a wildcard path on target contracts.
+export const COMMON_ENTRYPOINTS = ["transfer", "transferFrom", "swap"] as const;
 
 function sessionPkStorageKey(sessionPublicKey: string): string {
   return `starkclaw.session_pk.${sessionPublicKey}`;
@@ -132,11 +134,12 @@ export async function registerSessionKeyOnchain(params: {
     );
   }
 
-  // Note: spendingLimit and tokenAddress are local policy fields (UI/runtime checks).
-  // They are not part of add_or_update_session_key calldata.
+  // Security hardening: fail fast when callers pass spending policy fields that
+  // are not enforced by add_or_update_session_key.
   if (params.session.spendingLimit !== "0" || params.session.tokenAddress !== "") {
-    console.warn(
-      "[session-keys] spendingLimit/tokenAddress are local-only in this API version and are not enforced on-chain",
+    throw new Error(
+      "Spending policy fields (spendingLimit/tokenAddress) are not enforced by add_or_update_session_key. " +
+      "Configure on-chain limits with set_spending_policy before using this session in production."
     );
   }
   

@@ -61,8 +61,8 @@ const wallet = {
 const session: StoredSessionKey = {
   key: "0x222",
   tokenSymbol: "STRK",
-  tokenAddress: "0x333",
-  spendingLimit: "1000",
+  tokenAddress: "",
+  spendingLimit: "0",
   validAfter: 100,
   validUntil: 2000,
   allowedContracts: [], // Empty: entrypoint-only restrictions (supported by session-account API)
@@ -90,6 +90,22 @@ describe("session-keys migration", () => {
         session: sessionWithContracts,
       })
     ).rejects.toThrow("Contract-level restrictions are not supported");
+  });
+
+  it("throws when spending policy fields are set (not enforced by add_or_update_session_key)", async () => {
+    const sessionWithSpendingPolicy: StoredSessionKey = {
+      ...session,
+      tokenAddress: "0x333",
+      spendingLimit: "1000",
+    };
+
+    await expect(
+      registerSessionKeyOnchain({
+        wallet,
+        ownerPrivateKey: "0xowner",
+        session: sessionWithSpendingPolicy,
+      })
+    ).rejects.toThrow("Spending policy fields");
   });
 
   it("registers session key with add_or_update_session_key entrypoint and SessionData", async () => {
