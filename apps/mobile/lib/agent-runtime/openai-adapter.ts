@@ -85,7 +85,8 @@ function parseSseLine(line: string, pendingToolCalls: Map<number, PendingToolCal
     }
 
     if (finishReason === "stop" || finishReason === "length") {
-      return [{ type: "done", finishReason }];
+      const toolCallChunks = flushPendingToolCalls(pendingToolCalls);
+      return [...toolCallChunks, { type: "done", finishReason }];
     }
 
     const text = delta?.content;

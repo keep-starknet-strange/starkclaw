@@ -62,13 +62,6 @@ Security rules:
 - Read-only tools (get_balances, prepare_transfer, estimate_fee) can be executed automatically.
 - Use tools only within the approved execution policy.`;
 
-function messageToLlmFormat(messages: ChatMessage[]): LlmMessage[] {
-  return messages.map((m) => ({
-    role: m.role === "user" ? "user" : "assistant",
-    content: m.text,
-  }));
-}
-
 const READ_ONLY_TOOLS = new Set(["get_balances", "prepare_transfer", "estimate_fee"]);
 const AUTO_EXECUTABLE_TOOLS = new Set(["get_balances", "prepare_transfer", "estimate_fee"]);
 
@@ -133,7 +126,9 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
   const abortRef = React.useRef<(() => void) | null>(null);
   const streamingRef = React.useRef<ChatStream | null>(null);
   const messagesRef = React.useRef<ChatMessage[]>([]);
+  const llmMessagesRef = React.useRef<LlmMessage[]>([]);
   const isRespondingRef = React.useRef(false);
+  const sendLockRef = React.useRef(false);
   
   // Check for API key on mount
   React.useEffect(() => {
@@ -165,6 +160,7 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
       messages: s.messages.map((m) => ({ ...m, isStreaming: false })),
     }));
     isRespondingRef.current = false;
+    sendLockRef.current = false;
   }, []);
 
   const clearHistory = React.useCallback(() => {
@@ -175,11 +171,17 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
       toolCalls: [],
       isResponding: false,
     }));
+    llmMessagesRef.current = [];
   }, [cancelResponse]);
 
   const sendMessage = React.useCallback(async (text: string) => {
     const trimmed = text.trim();
-    if (!trimmed || isRespondingRef.current) return;
+    if (!trimmed || sendLockRef.current) return;
+    sendLockRef.current = true;
+    if (isRespondingRef.current) {
+      sendLockRef.current = false;
+      return;
+    }
     isRespondingRef.current = true;
 
     // Add user message
@@ -240,8 +242,9 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
         messages: [...s.messages, assistantMsg],
       }));
 
-      // Build conversation messages including current user input
-      const llmMessages = messageToLlmFormat(messagesRef.current);
+      // Build LLM conversation from persisted history and current user input.
+      llmMessagesRef.current = [...llmMessagesRef.current, { role: "user", content: trimmed }];
+      const llmMessages = llmMessagesRef.current;
 
       // Get tool definitions for LLM
       const toolDefs: OpenAITool[] = [
@@ -364,7 +367,7 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
         }
       }
 
-      // If we have tool calls, execute them and send results back to LLM
+      // If we have tool calls, execute them and send results back to LLM.
       if (currentToolCalls.length > 0) {
         const toolResults: { tool_call_id: string; content: string }[] = [];
 
@@ -427,9 +430,13 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
           toolCallId: tr.tool_call_id,
         }));
 
-        // Call LLM again with tool results
-        const updatedMessages = [...llmMessages, toolContextMsg, ...toolResultMessages];
-        stream = await callLlm(updatedMessages, toolDefs);
+        // Call LLM again with tool results and only auto-executable tools.
+        const executableToolDefs = toolDefs.filter((tool) =>
+          AUTO_EXECUTABLE_TOOLS.has(tool.function.name)
+        );
+        const updatedMessages = [...llmMessagesRef.current, toolContextMsg, ...toolResultMessages];
+        llmMessagesRef.current = updatedMessages;
+        stream = await callLlm(updatedMessages, executableToolDefs);
         streamingRef.current = stream;
 
         fullText = "";
@@ -466,6 +473,9 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
             break;
           }
         }
+        llmMessagesRef.current = [...llmMessagesRef.current, { role: "assistant", content: fullText }];
+      } else {
+        llmMessagesRef.current = [...llmMessagesRef.current, { role: "assistant", content: fullText }];
       }
 
       // Mark as complete
@@ -492,6 +502,7 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
       streamingRef.current = null;
       abortRef.current = null;
       isRespondingRef.current = false;
+      sendLockRef.current = false;
     }
   }, []);
 
