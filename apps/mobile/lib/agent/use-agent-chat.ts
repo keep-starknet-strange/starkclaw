@@ -134,7 +134,6 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
   const streamingRef = React.useRef<ChatStream | null>(null);
   const messagesRef = React.useRef<ChatMessage[]>([]);
   const isRespondingRef = React.useRef(false);
-  const sendInFlightRef = React.useRef(false);
   
   // Check for API key on mount
   React.useEffect(() => {
@@ -166,7 +165,6 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
       messages: s.messages.map((m) => ({ ...m, isStreaming: false })),
     }));
     isRespondingRef.current = false;
-    sendInFlightRef.current = false;
   }, []);
 
   const clearHistory = React.useCallback(() => {
@@ -181,9 +179,8 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
 
   const sendMessage = React.useCallback(async (text: string) => {
     const trimmed = text.trim();
-    if (!trimmed || isRespondingRef.current || sendInFlightRef.current) return;
+    if (!trimmed || isRespondingRef.current) return;
     isRespondingRef.current = true;
-    sendInFlightRef.current = true;
 
     // Add user message
     const userMsg: ChatMessage = {
@@ -495,7 +492,6 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
       streamingRef.current = null;
       abortRef.current = null;
       isRespondingRef.current = false;
-      sendInFlightRef.current = false;
     }
   }, []);
 

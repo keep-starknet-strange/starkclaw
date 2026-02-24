@@ -40,18 +40,15 @@ function flushPendingToolCalls(pendingToolCalls: Map<number, PendingToolCall>): 
 
     if (trimmed.length > 0) {
       try {
-        // Emit only when arguments are complete JSON object.
-        if (!(trimmed.startsWith("{") && trimmed.endsWith("}"))) {
-          continue;
-        }
         const parsed = JSON.parse(trimmed);
         if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-          continue;
+          args = { error: "invalid JSON arguments (expected object)" };
+        } else {
+          args = parsed as Record<string, unknown>;
         }
-        args = parsed as Record<string, unknown>;
       } catch {
-        // Incomplete or invalid JSON. Skip emission for this tool call.
-        continue;
+        // Surface parse errors instead of silently dropping the call.
+        args = { error: "invalid or incomplete JSON arguments" };
       }
     }
 
