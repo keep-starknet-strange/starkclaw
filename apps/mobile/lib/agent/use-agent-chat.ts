@@ -51,19 +51,21 @@ type AgentChatActions = {
 const AGENT_SYSTEM_PROMPT = `You are Starkclaw, an AI agent for Starknet. You help users with safe Starknet planning.
 
 Available tools:
-- get_balances: Read ERC-20 balances (ETH, USDC, STRK)
-- prepare_transfer: Validate and prepare a transfer without executing
-- estimate_fee: Estimate gas fees
-- execute_transfer: Requires manual user approval in the Transfer tab
+- get_balances: Read ERC-20 balances (ETH, USDC, STRK) - auto-executable
+- estimate_fee: Estimate gas fees - auto-executable
+
+Tools requiring manual approval:
+- prepare_transfer: Validate transfer inputs only (cannot execute in chat)
+- execute_transfer: Blocked in chat. User must execute from the Transfer tab
 
 Security rules:
-- Never claim to execute transfers directly.
-- execute_transfer requires explicit manual approval in the Transfer tab.
-- Read-only tools (get_balances, prepare_transfer, estimate_fee) can be executed automatically.
+- You cannot execute transfers directly from chat.
+- If a user wants to transfer funds, direct them to the Transfer tab for manual approval.
+- Only get_balances and estimate_fee can be executed automatically.
 - Use tools only within the approved execution policy.`;
 
-const READ_ONLY_TOOLS = new Set(["get_balances", "prepare_transfer", "estimate_fee"]);
-const AUTO_EXECUTABLE_TOOLS = new Set(["get_balances", "prepare_transfer", "estimate_fee"]);
+const READ_ONLY_TOOLS = new Set(["get_balances", "estimate_fee"]);
+const AUTO_EXECUTABLE_TOOLS = new Set(["get_balances", "estimate_fee"]);
 
 function isReadOnlyTool(name: string): boolean {
   return READ_ONLY_TOOLS.has(name);
@@ -255,8 +257,14 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
             description: "Get ERC-20 token balances for the wallet",
             parameters: {
               type: "object",
-              properties: {},
-              required: [],
+              properties: {
+                network: {
+                  type: "string",
+                  description: "Network (sepolia/mainnet)",
+                  enum: ["sepolia", "mainnet"],
+                },
+              },
+              required: ["network"],
             },
           },
         },
@@ -268,11 +276,20 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
             parameters: {
               type: "object",
               properties: {
-                token: { type: "string", description: "Token symbol (ETH, USDC, STRK)" },
+                network: {
+                  type: "string",
+                  description: "Network (sepolia/mainnet)",
+                  enum: ["sepolia", "mainnet"],
+                },
+                tokenSymbol: {
+                  type: "string",
+                  description: "Token symbol (ETH, USDC, STRK)",
+                  enum: ["ETH", "USDC", "STRK"],
+                },
                 amount: { type: "string", description: "Amount to transfer" },
-                recipient: { type: "string", description: "Recipient address (0x...)" },
+                to: { type: "string", description: "Recipient address (0x...)" },
               },
-              required: ["token", "amount", "recipient"],
+              required: ["network", "tokenSymbol", "amount", "to"],
             },
           },
         },
@@ -284,11 +301,15 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
             parameters: {
               type: "object",
               properties: {
-                token: { type: "string", description: "Token symbol (ETH, USDC, STRK)" },
+                tokenSymbol: {
+                  type: "string",
+                  description: "Token symbol (ETH, USDC, STRK)",
+                  enum: ["ETH", "USDC", "STRK"],
+                },
                 amount: { type: "string", description: "Amount to transfer" },
-                recipient: { type: "string", description: "Recipient address (0x...)" },
+                to: { type: "string", description: "Recipient address (0x...)" },
               },
-              required: ["token", "amount", "recipient"],
+              required: ["tokenSymbol", "amount", "to"],
             },
           },
         },
@@ -296,15 +317,24 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
           type: "function" as const,
           function: {
             name: "execute_transfer",
-            description: "Execute a prepared token transfer",
+            description: "Execute a prepared token transfer (requires manual approval in Transfer tab)",
             parameters: {
               type: "object",
               properties: {
-                token: { type: "string", description: "Token symbol (ETH, USDC, STRK)" },
+                network: {
+                  type: "string",
+                  description: "Network (sepolia/mainnet)",
+                  enum: ["sepolia", "mainnet"],
+                },
+                tokenSymbol: {
+                  type: "string",
+                  description: "Token symbol (ETH, USDC, STRK)",
+                  enum: ["ETH", "USDC", "STRK"],
+                },
                 amount: { type: "string", description: "Amount to transfer" },
-                recipient: { type: "string", description: "Recipient address (0x...)" },
+                to: { type: "string", description: "Recipient address (0x...)" },
               },
-              required: ["token", "amount", "recipient"],
+              required: ["network", "tokenSymbol", "amount", "to"],
             },
           },
         },
@@ -316,7 +346,7 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
           model: "gpt-4o-mini",
           systemPrompt: AGENT_SYSTEM_PROMPT,
           messages: msgs,
-          tools: (tools && tools.length > 0) ? tools : toolDefs,
+          tools,
         });
       };
 
@@ -430,13 +460,10 @@ export function useAgentChatLive(): [AgentChatState, AgentChatActions] {
           toolCallId: tr.tool_call_id,
         }));
 
-        // Call LLM again with tool results and only auto-executable tools.
-        const executableToolDefs = toolDefs.filter((tool) =>
-          AUTO_EXECUTABLE_TOOLS.has(tool.function.name)
-        );
+        // Call LLM again with tool results and no additional tool execution.
         const updatedMessages = [...llmMessagesRef.current, toolContextMsg, ...toolResultMessages];
         llmMessagesRef.current = updatedMessages;
-        stream = await callLlm(updatedMessages, executableToolDefs);
+        stream = await callLlm(updatedMessages, undefined);
         streamingRef.current = stream;
 
         fullText = "";

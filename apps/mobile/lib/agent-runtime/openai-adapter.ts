@@ -80,8 +80,10 @@ function parseSseLine(line: string, pendingToolCalls: Map<number, PendingToolCal
     const delta = json?.choices?.[0]?.delta;
     const finishReason = json?.choices?.[0]?.finish_reason;
 
+    // Keep buffering for tool calls until terminal chunks ([DONE]/stop/length).
+    // OpenAI streams function.arguments incrementally and may split JSON across chunks.
     if (finishReason === "tool_calls") {
-      return flushPendingToolCalls(pendingToolCalls);
+      return [];
     }
 
     if (finishReason === "stop" || finishReason === "length") {
@@ -198,6 +200,12 @@ async function* streamSse(
       for (const chunk of chunks) {
         yield chunk;
       }
+    }
+
+    // If we never received [DONE], flush pending tool calls before emitting done.
+    const trailingToolCalls = flushPendingToolCalls(pendingToolCalls);
+    for (const chunk of trailingToolCalls) {
+      yield chunk;
     }
 
     // If we never received [DONE], emit one.
