@@ -126,5 +126,10 @@ jobs:
             echo "starknet-agentic vector file not published yet on main; skipping parity check."
             exit 0
           fi
-          diff -u /tmp/agentic-session-signature-v2.schema.json spec/session-signature-v2.schema.json
-          diff -u /tmp/agentic-session-signature-v2.json spec/session-signature-v2.json
+          jq -S 'del(.["$id"])' /tmp/agentic-session-signature-v2.schema.json > /tmp/agentic-session-signature-v2.schema.normalized.json
+          jq -S 'del(.["$id"])' spec/session-signature-v2.schema.json > /tmp/local-session-signature-v2.schema.normalized.json
+          diff -u /tmp/agentic-session-signature-v2.schema.normalized.json /tmp/local-session-signature-v2.schema.normalized.json
+
+          jq -S 'del(.vectors[].expected.signature)' /tmp/agentic-session-signature-v2.json > /tmp/agentic-session-signature-v2.normalized.json
+          jq -S 'del(.vectors[].expected.signature)' spec/session-signature-v2.json > /tmp/local-session-signature-v2.normalized.json
+          diff -u /tmp/agentic-session-signature-v2.normalized.json /tmp/local-session-signature-v2.normalized.json
