@@ -1,0 +1,200 @@
+{
+  "spec": "session-signature-v2",
+  "version": "2.0.0",
+  "derivation": {
+    "canonicalRepository": "keep-starknet-strange/starknet-agentic",
+    "canonicalRef": "main",
+    "canonicalSpecPath": "spec/session-signature-v2.json",
+    "verificationReferences": [
+      "packages/starknet-mcp-server/__tests__/helpers/sessionSignatureVectors.test.ts",
+      "packages/starknet-mcp-server/__tests__/helpers/keyringProxySigner.test.ts"
+    ]
+  },
+  "vectors": [
+    {
+      "id": "outside_execution_single_call_sepolia_v2",
+      "description": "Canonical single-call SNIP-12 outside execution payload for v2 signature mode.",
+      "mode": "v2_snip12",
+      "accountAddress": "0x0123456789abcdef",
+      "domain": {
+        "name": "Account.execute_from_outside",
+        "version": "2",
+        "chainId": "0x534e5f5345504f4c4941",
+        "revision": "1"
+      },
+      "message": {
+        "caller": "0x0",
+        "nonce": "0x1",
+        "execute_after": "0x0",
+        "execute_before": "0xffffffffffffffff",
+        "calls": [
+          {
+            "to": "0x1111111111111111",
+            "selector": "0x2222222222222222",
+            "calldata": ["0x1", "0x2"]
+          }
+        ]
+      },
+      "expected": {
+        "domainHash": "0x2534050c42890f9cad3cf470a8b54a39c4d283a246dfceb486a8755e44a91df",
+        "messageHash": "0x42020b70d5ca7dea4ce8b7866cb1477b218825e4378f69ffd5b5f712406fcef"
+      }
+    }
+  ],
+  "sessionVectors": [
+    {
+      "id": "session_v1_valid_single_call",
+      "description": "v1 legacy mode accepts matching payload hash.",
+      "mode": "v1_legacy",
+      "status": "valid",
+      "signingPayload": {
+        "accountAddress": "0x0123456789abcdef",
+        "chainId": "0x534e5f5345504f4c4941",
+        "nonce": "0x1",
+        "validUntil": "0x698f136c",
+        "calls": [
+          {
+            "to": "0x1111111111111111",
+            "selector": "0x2222222222222222",
+            "calldata": ["0x1", "0x2"]
+          }
+        ]
+      },
+      "verificationPayload": {
+        "accountAddress": "0x0123456789abcdef",
+        "chainId": "0x534e5f5345504f4c4941",
+        "nonce": "0x1",
+        "validUntil": "0x698f136c",
+        "calls": [
+          {
+            "to": "0x1111111111111111",
+            "selector": "0x2222222222222222",
+            "calldata": ["0x1", "0x2"]
+          }
+        ]
+      },
+      "expected": {
+        "shouldVerify": true,
+        "signingMessageHash": "0x41a4c7da42592bb690030fe2f82a3cbcf5da18e7a22cbb3d079ea460cbe4c76",
+        "verificationMessageHash": "0x41a4c7da42592bb690030fe2f82a3cbcf5da18e7a22cbb3d079ea460cbe4c76"
+      }
+    },
+    {
+      "id": "session_v1_invalid_chain_mismatch",
+      "description": "v1 legacy mode rejects when signed chain_id differs from verification payload.",
+      "mode": "v1_legacy",
+      "status": "invalid",
+      "signingPayload": {
+        "accountAddress": "0x0123456789abcdef",
+        "chainId": "0x534e5f5345504f4c4941",
+        "nonce": "0x1",
+        "validUntil": "0x698f136c",
+        "calls": [
+          {
+            "to": "0x1111111111111111",
+            "selector": "0x2222222222222222",
+            "calldata": ["0x1", "0x2"]
+          }
+        ]
+      },
+      "verificationPayload": {
+        "accountAddress": "0x0123456789abcdef",
+        "chainId": "0x534e5f4d41494e",
+        "nonce": "0x1",
+        "validUntil": "0x698f136c",
+        "calls": [
+          {
+            "to": "0x1111111111111111",
+            "selector": "0x2222222222222222",
+            "calldata": ["0x1", "0x2"]
+          }
+        ]
+      },
+      "expected": {
+        "shouldVerify": false,
+        "signingMessageHash": "0x41a4c7da42592bb690030fe2f82a3cbcf5da18e7a22cbb3d079ea460cbe4c76",
+        "verificationMessageHash": "0x5ab31f1e8be948277063b01ced4cdb15e18cb601ea79b589ea3efc8c2b99e77",
+        "failureCode": "CHAIN_ID_MISMATCH"
+      }
+    },
+    {
+      "id": "session_v2_valid_single_call",
+      "description": "v2 SNIP-12 mode accepts matching domain-separated payload hash.",
+      "mode": "v2_snip12",
+      "status": "valid",
+      "signingPayload": {
+        "accountAddress": "0x0123456789abcdef",
+        "chainId": "0x534e5f5345504f4c4941",
+        "nonce": "0x1",
+        "validUntil": "0x698f136c",
+        "calls": [
+          {
+            "to": "0x1111111111111111",
+            "selector": "0x2222222222222222",
+            "calldata": ["0x1", "0x2"]
+          }
+        ]
+      },
+      "verificationPayload": {
+        "accountAddress": "0x0123456789abcdef",
+        "chainId": "0x534e5f5345504f4c4941",
+        "nonce": "0x1",
+        "validUntil": "0x698f136c",
+        "calls": [
+          {
+            "to": "0x1111111111111111",
+            "selector": "0x2222222222222222",
+            "calldata": ["0x1", "0x2"]
+          }
+        ]
+      },
+      "expected": {
+        "shouldVerify": true,
+        "signingMessageHash": "0x7edcb70eb290abc674da6f88c0f3b75bbd657fd7e625d6bfd135c76380b4b28",
+        "verificationMessageHash": "0x7edcb70eb290abc674da6f88c0f3b75bbd657fd7e625d6bfd135c76380b4b28",
+        "signingDomainHash": "0x34f0c6639f0da8d88e2fadacd413b9961a35f92597558ba5d8f41aa4692ef12",
+        "verificationDomainHash": "0x34f0c6639f0da8d88e2fadacd413b9961a35f92597558ba5d8f41aa4692ef12"
+      }
+    },
+    {
+      "id": "session_v2_invalid_nonce_mismatch",
+      "description": "v2 SNIP-12 mode rejects when signed nonce differs from verification payload nonce.",
+      "mode": "v2_snip12",
+      "status": "invalid",
+      "signingPayload": {
+        "accountAddress": "0x0123456789abcdef",
+        "chainId": "0x534e5f5345504f4c4941",
+        "nonce": "0x1",
+        "validUntil": "0x698f136c",
+        "calls": [
+          {
+            "to": "0x1111111111111111",
+            "selector": "0x2222222222222222",
+            "calldata": ["0x1", "0x2"]
+          }
+        ]
+      },
+      "verificationPayload": {
+        "accountAddress": "0x0123456789abcdef",
+        "chainId": "0x534e5f5345504f4c4941",
+        "nonce": "0x2",
+        "validUntil": "0x698f136c",
+        "calls": [
+          {
+            "to": "0x1111111111111111",
+            "selector": "0x2222222222222222",
+            "calldata": ["0x1", "0x2"]
+          }
+        ]
+      },
+      "expected": {
+        "shouldVerify": false,
+        "signingMessageHash": "0x7edcb70eb290abc674da6f88c0f3b75bbd657fd7e625d6bfd135c76380b4b28",
+        "verificationMessageHash": "0x6769d48ea737869848d368f0e83f1a4c8b70c35aa1915dae170b078828392a",
+        "signingDomainHash": "0x34f0c6639f0da8d88e2fadacd413b9961a35f92597558ba5d8f41aa4692ef12",
+        "verificationDomainHash": "0x34f0c6639f0da8d88e2fadacd413b9961a35f92597558ba5d8f41aa4692ef12",
+        "failureCode": "NONCE_MISMATCH"
+      }
+    }
+  ]
+}
