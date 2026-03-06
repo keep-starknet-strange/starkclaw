@@ -151,6 +151,17 @@ jobs:
             return 0
           }
 
+          drift_or_fail() {
+            local label="$1"
+            local kind="$2"
+            if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+              echo "::warning::${label} ${kind} drift detected on PR; allowing coordinated rollout."
+            else
+              echo "::error::${label} ${kind} drift detected on ${GITHUB_EVENT_NAME}."
+              DRIFT_DETECTED=1
+            fi
+          }
+
           compare_with_repo() {
             local owner_repo="$1"
             local label="$2"
@@ -199,8 +210,7 @@ jobs:
             jq -S "$schema_filter" "$schema_out" > "$schema_norm_remote"
             jq -S "$schema_filter" spec/session-signature-v2.schema.json > "$schema_norm_local"
             if ! diff -u "$schema_norm_remote" "$schema_norm_local"; then
-              echo "::error::${label} schema drift detected."
-              DRIFT_DETECTED=1
+              drift_or_fail "$label" "schema"
             fi
 
             jq -S '
@@ -228,8 +238,7 @@ jobs:
               | .sessionVectors |= sort_by(.id)
             ' spec/session-signature-v2.json > "$vectors_norm_local"
             if ! diff -u "$vectors_norm_remote" "$vectors_norm_local"; then
-              echo "::error::${label} vector drift detected."
-              DRIFT_DETECTED=1
+              drift_or_fail "$label" "vector"
             fi
           }
 
