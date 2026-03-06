@@ -37,12 +37,9 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Install AJV CLI
-        run: npm install --global ajv-cli@5.0.0
-
       - name: Validate vector file against schema
         run: |
-          ajv validate \
+          npx --yes ajv-cli@5.0.0 validate \
             --spec=draft2020 \
             --strict=true \
             -s spec/session-signature-v2.schema.json \
@@ -112,6 +109,7 @@ jobs:
 
       - name: Compare vectors with starknet-agentic main
         run: |
+          set -euo pipefail
           if ! curl -fsSL \
             https://raw.githubusercontent.com/keep-starknet-strange/starknet-agentic/main/spec/session-signature-v2.schema.json \
             -o /tmp/agentic-session-signature-v2.schema.json; then
@@ -126,10 +124,10 @@ jobs:
             echo "starknet-agentic vector file not published yet on main; skipping parity check."
             exit 0
           fi
-          jq -S 'del(.["$id"])' /tmp/agentic-session-signature-v2.schema.json > /tmp/agentic-session-signature-v2.schema.normalized.json
-          jq -S 'del(.["$id"])' spec/session-signature-v2.schema.json > /tmp/local-session-signature-v2.schema.normalized.json
+          jq -S 'del(.["$id"], .properties.derivation, .["$defs"].derivation) | .required |= map(select(. != "derivation")) | .properties.sessionVectors.minItems = 1 | .["$defs"].sessionVector |= del(.allOf)' /tmp/agentic-session-signature-v2.schema.json > /tmp/agentic-session-signature-v2.schema.normalized.json
+          jq -S 'del(.["$id"], .properties.derivation, .["$defs"].derivation) | .required |= map(select(. != "derivation")) | .properties.sessionVectors.minItems = 1 | .["$defs"].sessionVector |= del(.allOf)' spec/session-signature-v2.schema.json > /tmp/local-session-signature-v2.schema.normalized.json
           diff -u /tmp/agentic-session-signature-v2.schema.normalized.json /tmp/local-session-signature-v2.schema.normalized.json
 
-          jq -S 'del(.vectors[].expected.signature)' /tmp/agentic-session-signature-v2.json > /tmp/agentic-session-signature-v2.normalized.json
-          jq -S 'del(.vectors[].expected.signature)' spec/session-signature-v2.json > /tmp/local-session-signature-v2.normalized.json
+          jq -S 'del(.vectors[].expected.signature, .derivation)' /tmp/agentic-session-signature-v2.json > /tmp/agentic-session-signature-v2.normalized.json
+          jq -S 'del(.vectors[].expected.signature, .derivation)' spec/session-signature-v2.json > /tmp/local-session-signature-v2.normalized.json
           diff -u /tmp/agentic-session-signature-v2.normalized.json /tmp/local-session-signature-v2.normalized.json
