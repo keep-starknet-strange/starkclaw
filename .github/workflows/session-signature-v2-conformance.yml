@@ -120,20 +120,34 @@ jobs:
       - name: Compare vectors with starknet-agentic main
         run: |
           set -euo pipefail
-          if ! curl -fsSL \
-            https://raw.githubusercontent.com/keep-starknet-strange/starknet-agentic/main/spec/session-signature-v2.schema.json \
-            -o /tmp/agentic-session-signature-v2.schema.json; then
-            echo "::warning::starknet-agentic schema not published yet on main; parity check skipped."
-            echo "starknet-agentic schema not published yet on main; skipping parity check."
-            exit 0
-          fi
-          if ! curl -fsSL \
-            https://raw.githubusercontent.com/keep-starknet-strange/starknet-agentic/main/spec/session-signature-v2.json \
-            -o /tmp/agentic-session-signature-v2.json; then
-            echo "::warning::starknet-agentic vector file not published yet on main; parity check skipped."
-            echo "starknet-agentic vector file not published yet on main; skipping parity check."
-            exit 0
-          fi
+          fetch_or_skip_404() {
+            local url="$1"
+            local out="$2"
+            local label="$3"
+            local http_status
+            http_status="$(curl -sSLo "$out" -w '%{http_code}' \
+              --retry 3 --retry-delay 2 --retry-all-errors \
+              --connect-timeout 10 --max-time 30 \
+              "$url")"
+            if [ "$http_status" = "404" ]; then
+              echo "::warning::${label} not published yet on main; parity check skipped."
+              echo "${label} not published yet on main; skipping parity check."
+              exit 0
+            fi
+            if [ "$http_status" != "200" ]; then
+              echo "::error::Failed to fetch ${label} (HTTP ${http_status})."
+              exit 1
+            fi
+          }
+
+          fetch_or_skip_404 \
+            "https://raw.githubusercontent.com/keep-starknet-strange/starknet-agentic/main/spec/session-signature-v2.schema.json" \
+            "/tmp/agentic-session-signature-v2.schema.json" \
+            "starknet-agentic schema"
+          fetch_or_skip_404 \
+            "https://raw.githubusercontent.com/keep-starknet-strange/starknet-agentic/main/spec/session-signature-v2.json" \
+            "/tmp/agentic-session-signature-v2.json" \
+            "starknet-agentic vector file"
           schema_filter='del(.["$id"], .properties.derivation, .["$defs"].derivation) | .required |= map(select(. != "derivation")) | .properties.sessionVectors.minItems = 1'
           if ! jq -e '.["$defs"].sessionVector | has("allOf")' /tmp/agentic-session-signature-v2.schema.json > /dev/null; then
             echo "::warning::upstream schema lacks sessionVector.allOf; parity diff ignores local allOf until upstream catches up."
@@ -147,6 +161,14 @@ jobs:
           jq -S "$schema_filter" spec/session-signature-v2.schema.json > /tmp/local-session-signature-v2.schema.normalized.json
           diff -u /tmp/agentic-session-signature-v2.schema.normalized.json /tmp/local-session-signature-v2.schema.normalized.json
 
-          jq -S 'del(.vectors[].expected.signature, .derivation)' /tmp/agentic-session-signature-v2.json > /tmp/agentic-session-signature-v2.normalized.json
-          jq -S 'del(.vectors[].expected.signature, .derivation)' spec/session-signature-v2.json > /tmp/local-session-signature-v2.normalized.json
+          jq -S '
+            del(.vectors[].expected.signature, .derivation)
+            | .vectors |= sort_by(.id)
+            | .sessionVectors |= sort_by(.id)
+          ' /tmp/agentic-session-signature-v2.json > /tmp/agentic-session-signature-v2.normalized.json
+          jq -S '
+            del(.vectors[].expected.signature, .derivation)
+            | .vectors |= sort_by(.id)
+            | .sessionVectors |= sort_by(.id)
+          ' spec/session-signature-v2.json > /tmp/local-session-signature-v2.normalized.json
           diff -u /tmp/agentic-session-signature-v2.normalized.json /tmp/local-session-signature-v2.normalized.json

@@ -291,6 +291,33 @@
         {
           "if": {
             "properties": {
+              "mode": {
+                "const": "v2_snip12"
+              }
+            },
+            "required": ["mode"]
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "expected": {
+                "type": "object",
+                "required": ["signingDomainHash", "verificationDomainHash"],
+                "properties": {
+                  "signingDomainHash": {
+                    "$ref": "#/$defs/felt"
+                  },
+                  "verificationDomainHash": {
+                    "$ref": "#/$defs/felt"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
               "status": {
                 "const": "valid"
               }
