@@ -72,6 +72,16 @@ jobs:
               throw new Error(`Duplicate session vector id: ${vector.id}`);
             }
             sessionIds.add(vector.id);
+            if (vector.status === "invalid" && !vector.expected?.failureCode) {
+              throw new Error(
+                `Session vector ${vector.id} has status "invalid" but is missing expected.failureCode`,
+              );
+            }
+            if (vector.status === "valid" && vector.expected?.failureCode) {
+              throw new Error(
+                `Session vector ${vector.id} has status "valid" but unexpectedly contains expected.failureCode`,
+              );
+            }
             hasV1 = hasV1 || vector.mode === "v1_legacy";
             hasV2 = hasV2 || vector.mode === "v2_snip12";
             hasValid = hasValid || vector.status === "valid";
