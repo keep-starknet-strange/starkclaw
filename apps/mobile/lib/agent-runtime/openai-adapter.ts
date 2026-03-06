@@ -21,29 +21,106 @@ const DEFAULT_MODEL = "gpt-4o-mini";
 // SSE line parser
 // ---------------------------------------------------------------------------
 
-function parseSseLine(line: string): StreamChunk | null {
-  if (!line.startsWith("data: ")) return null;
+type PendingToolCall = {
+  id?: string;
+  name?: string;
+  argsBuffer: string;
+};
+
+function flushPendingToolCalls(pendingToolCalls: Map<number, PendingToolCall>): StreamChunk[] {
+  const results: StreamChunk[] = [];
+  const orderedIndexes = Array.from(pendingToolCalls.keys()).sort((a, b) => a - b);
+
+  for (const index of orderedIndexes) {
+    const pending = pendingToolCalls.get(index);
+    if (!pending?.id || !pending.name) continue;
+
+    const trimmed = pending.argsBuffer.trim();
+    let args: Record<string, unknown> = {};
+
+    if (trimmed.length > 0) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+          args = { error: "invalid JSON arguments (expected object)" };
+        } else {
+          args = parsed as Record<string, unknown>;
+        }
+      } catch {
+        // Surface parse errors instead of silently dropping the call.
+        args = { error: "invalid or incomplete JSON arguments" };
+      }
+    }
+
+    results.push({
+      type: "tool_call",
+      toolCall: {
+        id: pending.id,
+        name: pending.name,
+        arguments: args,
+      },
+    });
+  }
+
+  pendingToolCalls.clear();
+  return results;
+}
+
+/** Accumulator for tool call arguments - passed as parameter to avoid module-level state */
+function parseSseLine(line: string, pendingToolCalls: Map<number, PendingToolCall>): StreamChunk[] {
+  if (!line.startsWith("data: ")) return [];
   const data = line.slice(6).trim();
-  if (data === "[DONE]") return { type: "done", finishReason: "stop" };
+  if (data === "[DONE]") {
+    const toolCallChunks = flushPendingToolCalls(pendingToolCalls);
+    return [...toolCallChunks, { type: "done", finishReason: "stop" }];
+  }
 
   try {
     const json = JSON.parse(data);
     const delta = json?.choices?.[0]?.delta;
     const finishReason = json?.choices?.[0]?.finish_reason;
 
+    // Keep buffering for tool calls until terminal chunks ([DONE]/stop/length).
+    // OpenAI streams function.arguments incrementally and may split JSON across chunks.
+    if (finishReason === "tool_calls") {
+      return [];
+    }
+
     if (finishReason === "stop" || finishReason === "length") {
-      return { type: "done", finishReason };
+      const toolCallChunks = flushPendingToolCalls(pendingToolCalls);
+      return [...toolCallChunks, { type: "done", finishReason }];
     }
 
     const text = delta?.content;
     if (typeof text === "string" && text.length > 0) {
-      return { type: "delta", text };
+      return [{ type: "delta", text }];
+    }
+
+    // Check for tool calls
+    const toolCalls = delta?.tool_calls;
+    if (Array.isArray(toolCalls) && toolCalls.length > 0) {
+      for (const tc of toolCalls) {
+        const index = typeof tc?.index === "number" ? tc.index : 0;
+        const pending = pendingToolCalls.get(index) ?? { argsBuffer: "" };
+
+        if (typeof tc?.id === "string" && tc.id.length > 0) {
+          pending.id = tc.id;
+        }
+        if (typeof tc?.function?.name === "string" && tc.function.name.length > 0) {
+          pending.name = tc.function.name;
+        }
+        if (typeof tc?.function?.arguments === "string") {
+          pending.argsBuffer += tc.function.arguments;
+        }
+
+        pendingToolCalls.set(index, pending);
+      }
     }
   } catch {
     // Malformed JSON — skip.
   }
 
-  return null;
+  return [];
 }
 
 // ---------------------------------------------------------------------------
@@ -64,6 +141,9 @@ async function* streamSse(
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   const abortOnParent = () => controller.abort();
   combinedSignal.addEventListener("abort", abortOnParent);
+
+  // Create fresh buffer for this stream - avoids shared state between calls
+  const pendingToolCalls = new Map<number, PendingToolCall>();
 
   try {
     const res = await fetch(url, {
@@ -103,16 +183,29 @@ async function* streamSse(
       for (const line of lines) {
         const trimmed = line.trim();
         if (!trimmed) continue;
-        const chunk = parseSseLine(trimmed);
-        if (chunk) yield chunk;
-        if (chunk?.type === "done") return;
+        const chunks = parseSseLine(trimmed, pendingToolCalls);
+        for (const chunk of chunks) {
+          yield chunk;
+          if (chunk.type === "done") {
+            pendingToolCalls.clear();
+            return;
+          }
+        }
       }
     }
 
     // Process any remaining buffer.
     if (buffer.trim()) {
-      const chunk = parseSseLine(buffer.trim());
-      if (chunk) yield chunk;
+      const chunks = parseSseLine(buffer.trim(), pendingToolCalls);
+      for (const chunk of chunks) {
+        yield chunk;
+      }
+    }
+
+    // If we never received [DONE], flush pending tool calls before emitting done.
+    const trailingToolCalls = flushPendingToolCalls(pendingToolCalls);
+    for (const chunk of trailingToolCalls) {
+      yield chunk;
     }
 
     // If we never received [DONE], emit one.
@@ -120,6 +213,7 @@ async function* streamSse(
   } finally {
     clearTimeout(timeoutId);
     combinedSignal.removeEventListener("abort", abortOnParent);
+    pendingToolCalls.clear();
   }
 }
 
@@ -159,12 +253,32 @@ export function createOpenAiProvider(apiKey: string): LlmProvider {
       const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
       const abortController = new AbortController();
 
-      const messages = [
-        ...(opts.systemPrompt
-          ? [{ role: "system" as const, content: opts.systemPrompt }]
-          : []),
-        ...opts.messages.map((m) => ({ role: m.role, content: m.content })),
-      ];
+      const messages: Array<Record<string, unknown>> = [];
+      if (opts.systemPrompt) {
+        messages.push({ role: "system", content: opts.systemPrompt });
+      }
+      for (const m of opts.messages) {
+        if (m.role === "tool") {
+          if (!m.toolCallId) {
+            throw new ProviderError("Tool message missing tool_call_id", "");
+          }
+          messages.push({
+            role: "tool",
+            content: m.content,
+            tool_call_id: m.toolCallId,
+          });
+          continue;
+        }
+        if (m.role === "assistant" && Array.isArray(m.toolCalls) && m.toolCalls.length > 0) {
+          messages.push({
+            role: "assistant",
+            content: m.content,
+            tool_calls: m.toolCalls,
+          });
+          continue;
+        }
+        messages.push({ role: m.role, content: m.content });
+      }
 
       const body: Record<string, unknown> = {
         model,
@@ -173,6 +287,7 @@ export function createOpenAiProvider(apiKey: string): LlmProvider {
       };
       if (opts.maxTokens != null) body.max_tokens = opts.maxTokens;
       if (opts.temperature != null) body.temperature = opts.temperature;
+      if (opts.tools != null) body.tools = opts.tools;
 
       const generator = streamSse(
         `${OPENAI_BASE}/chat/completions`,

@@ -69,6 +69,7 @@ export type DemoAgentMessage = {
   createdAt: number; // unix seconds
   role: "user" | "assistant";
   text: string;
+  isStreaming?: boolean; // for demo mode compatibility
 };
 
 export type DemoProposalKind = "trade" | "policy" | "transfer";

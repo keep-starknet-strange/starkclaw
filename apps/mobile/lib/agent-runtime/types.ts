@@ -9,11 +9,22 @@
 // Messages
 // ---------------------------------------------------------------------------
 
-export type ChatRole = "system" | "user" | "assistant";
+export type ChatRole = "system" | "user" | "assistant" | "tool";
+
+export type AssistantToolCall = {
+  id: string;
+  type: "function";
+  function: {
+    name: string;
+    arguments: string;
+  };
+};
 
 export type ChatMessage = {
   role: ChatRole;
   content: string;
+  toolCallId?: string;
+  toolCalls?: AssistantToolCall[];
 };
 
 // ---------------------------------------------------------------------------
@@ -23,7 +34,15 @@ export type ChatMessage = {
 /** A single chunk emitted during streaming. */
 export type StreamChunk =
   | { type: "delta"; text: string }
+  | { type: "tool_call"; toolCall: ParsedToolCall }
   | { type: "done"; finishReason: "stop" | "length" | "error" };
+
+/** Parsed tool call from LLM response */
+export type ParsedToolCall = {
+  id: string;
+  name: string;
+  arguments: Record<string, unknown>;
+};
 
 export type StreamOptions = {
   /** Model ID to use (e.g. "gpt-4o-mini"). */
@@ -32,12 +51,24 @@ export type StreamOptions = {
   systemPrompt?: string;
   /** Conversation messages. */
   messages: ChatMessage[];
+  /** Tools available to the model. */
+  tools?: OpenAITool[];
   /** Max tokens to generate. Default: provider-specific. */
   maxTokens?: number;
   /** Sampling temperature. Default: provider-specific. */
   temperature?: number;
   /** Request timeout in ms. Default: 30000. */
   timeoutMs?: number;
+};
+
+/** OpenAI function calling tool schema */
+export type OpenAITool = {
+  type: "function";
+  function: {
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+  };
 };
 
 /** Async iterable of stream chunks. Call `cancel()` to abort early. */
