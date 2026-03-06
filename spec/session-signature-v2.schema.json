@@ -332,10 +332,6 @@
                 "properties": {
                   "shouldVerify": {
                     "const": true
-                  },
-                  "failureCode": {
-                    "type": "string",
-                    "pattern": "^[A-Z0-9_]+$"
                   }
                 },
                 "not": {
