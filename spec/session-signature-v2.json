@@ -28,11 +28,7 @@
       },
       "expected": {
         "domainHash": "0x2534050c42890f9cad3cf470a8b54a39c4d283a246dfceb486a8755e44a91df",
-        "messageHash": "0x42020b70d5ca7dea4ce8b7866cb1477b218825e4378f69ffd5b5f712406fcef",
-        "signature": {
-          "r": "0x01020304",
-          "s": "0x05060708"
-        }
+        "messageHash": "0x42020b70d5ca7dea4ce8b7866cb1477b218825e4378f69ffd5b5f712406fcef"
       }
     }
   ],

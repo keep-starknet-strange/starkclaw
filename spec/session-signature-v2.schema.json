@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://keep-starknet-strange.github.io/starknet-agentic/spec/session-signature-v2.schema.json",
+  "$id": "https://keep-starknet-strange.github.io/starkclaw/spec/session-signature-v2.schema.json",
   "title": "Session signature v1+v2 conformance vectors",
   "type": "object",
   "additionalProperties": false,
