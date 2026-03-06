@@ -2,6 +2,8 @@ name: session-signature-v2-conformance
 
 on:
   pull_request:
+    branches:
+      - main
     paths:
       - "spec/session-signature-v2.json"
       - "spec/session-signature-v2.schema.json"
@@ -118,57 +120,131 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
 
       - name: Compare vectors with starknet-agentic main
+        env:
+          SISNA_REPO: ${{ vars.SISNA_REPO }}
         run: |
           set -euo pipefail
+          DRIFT_DETECTED=0
+          sisna_repo="${SISNA_REPO:-keep-starknet-strange/SISNA}"
+
           fetch_or_skip_404() {
             local url="$1"
             local out="$2"
             local label="$3"
             local http_status
-            http_status="$(curl -sSLo "$out" -w '%{http_code}' \
+            if ! http_status="$(curl -sSLo "$out" -w '%{http_code}' \
               --retry 3 --retry-delay 2 --retry-all-errors \
               --connect-timeout 10 --max-time 30 \
-              "$url")"
+              "$url")"; then
+              echo "::error::Failed to fetch ${label} due to network/transport error."
+              return 1
+            fi
             if [ "$http_status" = "404" ]; then
               echo "::warning::${label} not published yet on main; parity check skipped."
               echo "${label} not published yet on main; skipping parity check."
-              exit 0
+              return 2
             fi
             if [ "$http_status" != "200" ]; then
               echo "::error::Failed to fetch ${label} (HTTP ${http_status})."
-              exit 1
+              return 1
+            fi
+            return 0
+          }
+
+          compare_with_repo() {
+            local owner_repo="$1"
+            local label="$2"
+            local fetch_status=0
+
+            local schema_out="/tmp/${label}-session-signature-v2.schema.json"
+            local vectors_out="/tmp/${label}-session-signature-v2.json"
+            local schema_norm_remote="/tmp/${label}-session-signature-v2.schema.normalized.json"
+            local schema_norm_local="/tmp/local-${label}-session-signature-v2.schema.normalized.json"
+            local vectors_norm_remote="/tmp/${label}-session-signature-v2.normalized.json"
+            local vectors_norm_local="/tmp/local-${label}-session-signature-v2.normalized.json"
+
+            fetch_status=0
+            fetch_or_skip_404 \
+              "https://raw.githubusercontent.com/${owner_repo}/main/spec/session-signature-v2.schema.json" \
+              "$schema_out" \
+              "${label} schema" || fetch_status=$?
+            if [ "$fetch_status" -eq 2 ]; then
+              return 0
+            fi
+            if [ "$fetch_status" -ne 0 ]; then
+              return "$fetch_status"
+            fi
+
+            fetch_status=0
+            fetch_or_skip_404 \
+              "https://raw.githubusercontent.com/${owner_repo}/main/spec/session-signature-v2.json" \
+              "$vectors_out" \
+              "${label} vector file" || fetch_status=$?
+            if [ "$fetch_status" -eq 2 ]; then
+              return 0
+            fi
+            if [ "$fetch_status" -ne 0 ]; then
+              return "$fetch_status"
+            fi
+
+            schema_filter='del(.["$id"], .properties.derivation, .["$defs"].derivation) | (.required //= []) | .required |= map(select(. != "derivation")) | .properties.sessionVectors.minItems = 1'
+            if ! jq -e '.["$defs"]?.sessionVector? // {} | has("allOf")' "$schema_out" > /dev/null; then
+              echo "::warning::${label} schema lacks sessionVector.allOf; parity diff ignores local allOf until ${label} catches up."
+              schema_filter="$schema_filter | .[\"\$defs\"].sessionVector |= del(.allOf)"
+            fi
+            if ! jq -e '.["$defs"]?.outsideExecutionDomain?.properties?.name? // {} | has("const")' "$schema_out" > /dev/null; then
+              echo "::warning::${label} schema lacks outsideExecutionDomain.name const; parity diff ignores local const until ${label} catches up."
+              schema_filter="$schema_filter | .[\"\$defs\"].outsideExecutionDomain.properties.name = {\"type\":\"string\",\"minLength\":1}"
+            fi
+            jq -S "$schema_filter" "$schema_out" > "$schema_norm_remote"
+            jq -S "$schema_filter" spec/session-signature-v2.schema.json > "$schema_norm_local"
+            if ! diff -u "$schema_norm_remote" "$schema_norm_local"; then
+              echo "::error::${label} schema drift detected."
+              DRIFT_DETECTED=1
+            fi
+
+            jq -S '
+              (.vectors //= [])
+              | (.sessionVectors //= [])
+              | del(
+                  .vectors[].expected.signature,
+                  .derivation,
+                  .sessionVectors[].expected.signingDomainHash,
+                  .sessionVectors[].expected.verificationDomainHash
+                )
+              | .vectors |= sort_by(.id)
+              | .sessionVectors |= sort_by(.id)
+            ' "$vectors_out" > "$vectors_norm_remote"
+            jq -S '
+              (.vectors //= [])
+              | (.sessionVectors //= [])
+              | del(
+                  .vectors[].expected.signature,
+                  .derivation,
+                  .sessionVectors[].expected.signingDomainHash,
+                  .sessionVectors[].expected.verificationDomainHash
+                )
+              | .vectors |= sort_by(.id)
+              | .sessionVectors |= sort_by(.id)
+            ' spec/session-signature-v2.json > "$vectors_norm_local"
+            if ! diff -u "$vectors_norm_remote" "$vectors_norm_local"; then
+              echo "::error::${label} vector drift detected."
+              DRIFT_DETECTED=1
             fi
           }
 
-          fetch_or_skip_404 \
-            "https://raw.githubusercontent.com/keep-starknet-strange/starknet-agentic/main/spec/session-signature-v2.schema.json" \
-            "/tmp/agentic-session-signature-v2.schema.json" \
-            "starknet-agentic schema"
-          fetch_or_skip_404 \
-            "https://raw.githubusercontent.com/keep-starknet-strange/starknet-agentic/main/spec/session-signature-v2.json" \
-            "/tmp/agentic-session-signature-v2.json" \
-            "starknet-agentic vector file"
-          schema_filter='del(.["$id"], .properties.derivation, .["$defs"].derivation) | .required |= map(select(. != "derivation")) | .properties.sessionVectors.minItems = 1'
-          if ! jq -e '.["$defs"].sessionVector | has("allOf")' /tmp/agentic-session-signature-v2.schema.json > /dev/null; then
-            echo "::warning::upstream schema lacks sessionVector.allOf; parity diff ignores local allOf until upstream catches up."
-            schema_filter="$schema_filter | .[\"\$defs\"].sessionVector |= del(.allOf)"
-          fi
-          if ! jq -e '.["$defs"].outsideExecutionDomain.properties.name | has("const")' /tmp/agentic-session-signature-v2.schema.json > /dev/null; then
-            echo "::warning::upstream schema lacks outsideExecutionDomain.name const; parity diff ignores local const until upstream catches up."
-            schema_filter="$schema_filter | .[\"\$defs\"].outsideExecutionDomain.properties.name = {\"type\":\"string\",\"minLength\":1}"
-          fi
-          jq -S "$schema_filter" /tmp/agentic-session-signature-v2.schema.json > /tmp/agentic-session-signature-v2.schema.normalized.json
-          jq -S "$schema_filter" spec/session-signature-v2.schema.json > /tmp/local-session-signature-v2.schema.normalized.json
-          diff -u /tmp/agentic-session-signature-v2.schema.normalized.json /tmp/local-session-signature-v2.schema.normalized.json
+          compare_with_repo "keep-starknet-strange/starknet-agentic" "starknet-agentic" || {
+            status=$?
+            echo "::error::compare_with_repo starknet-agentic failed with exit ${status}; SISNA check will still run."
+            DRIFT_DETECTED=1
+          }
+          compare_with_repo "$sisna_repo" "SISNA" || {
+            status=$?
+            echo "::error::compare_with_repo SISNA failed with exit ${status}."
+            DRIFT_DETECTED=1
+          }
 
-          jq -S '
-            del(.vectors[].expected.signature, .derivation)
-            | .vectors |= sort_by(.id)
-            | .sessionVectors |= sort_by(.id)
-          ' /tmp/agentic-session-signature-v2.json > /tmp/agentic-session-signature-v2.normalized.json
-          jq -S '
-            del(.vectors[].expected.signature, .derivation)
-            | .vectors |= sort_by(.id)
-            | .sessionVectors |= sort_by(.id)
-          ' spec/session-signature-v2.json > /tmp/local-session-signature-v2.normalized.json
-          diff -u /tmp/agentic-session-signature-v2.normalized.json /tmp/local-session-signature-v2.normalized.json
+          if [ "$DRIFT_DETECTED" -ne 0 ]; then
+            echo "One or more parity drifts detected; failing."
+            exit 1
+          fi
