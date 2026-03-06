@@ -134,8 +134,17 @@ jobs:
             echo "starknet-agentic vector file not published yet on main; skipping parity check."
             exit 0
           fi
-          jq -S 'del(.["$id"], .properties.derivation, .["$defs"].derivation) | .required |= map(select(. != "derivation")) | .properties.sessionVectors.minItems = 1 | .["$defs"].sessionVector |= del(.allOf)' /tmp/agentic-session-signature-v2.schema.json > /tmp/agentic-session-signature-v2.schema.normalized.json
-          jq -S 'del(.["$id"], .properties.derivation, .["$defs"].derivation) | .required |= map(select(. != "derivation")) | .properties.sessionVectors.minItems = 1 | .["$defs"].sessionVector |= del(.allOf)' spec/session-signature-v2.schema.json > /tmp/local-session-signature-v2.schema.normalized.json
+          schema_filter='del(.["$id"], .properties.derivation, .["$defs"].derivation) | .required |= map(select(. != "derivation")) | .properties.sessionVectors.minItems = 1'
+          if ! jq -e '.["$defs"].sessionVector | has("allOf")' /tmp/agentic-session-signature-v2.schema.json > /dev/null; then
+            echo "::warning::upstream schema lacks sessionVector.allOf; parity diff ignores local allOf until upstream catches up."
+            schema_filter="$schema_filter | .[\"\$defs\"].sessionVector |= del(.allOf)"
+          fi
+          if ! jq -e '.["$defs"].outsideExecutionDomain.properties.name | has("const")' /tmp/agentic-session-signature-v2.schema.json > /dev/null; then
+            echo "::warning::upstream schema lacks outsideExecutionDomain.name const; parity diff ignores local const until upstream catches up."
+            schema_filter="$schema_filter | .[\"\$defs\"].outsideExecutionDomain.properties.name = {\"type\":\"string\",\"minLength\":1}"
+          fi
+          jq -S "$schema_filter" /tmp/agentic-session-signature-v2.schema.json > /tmp/agentic-session-signature-v2.schema.normalized.json
+          jq -S "$schema_filter" spec/session-signature-v2.schema.json > /tmp/local-session-signature-v2.schema.normalized.json
           diff -u /tmp/agentic-session-signature-v2.schema.normalized.json /tmp/local-session-signature-v2.schema.normalized.json
 
           jq -S 'del(.vectors[].expected.signature, .derivation)' /tmp/agentic-session-signature-v2.json > /tmp/agentic-session-signature-v2.normalized.json

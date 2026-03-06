@@ -99,7 +99,7 @@
       "properties": {
         "name": {
           "type": "string",
-          "minLength": 1
+          "const": "Account.execute_from_outside"
         },
         "version": {
           "type": "string",
