@@ -10,6 +10,14 @@ import { MAX_ALLOWED_TARGETS, ZERO_ADDRESS, padTargets } from "./target-presets"
 
 const SESSION_KEYS_INDEX_ID = "starkclaw.session_keys.v1";
 
+/** Default max calls for session keys. */
+export const DEFAULT_MAX_CALLS = 100;
+
+/** Common entrypoint names allowed for session keys. */
+// Keep the default selector list minimal. `execute` is intentionally excluded
+// because it can become a wildcard path on target contracts.
+export const COMMON_ENTRYPOINTS = ["transfer", "transferFrom", "swap"] as const;
+
 function sessionPkStorageKey(sessionPublicKey: string): string {
   return `starkclaw.session_pk.${sessionPublicKey}`;
 }
@@ -107,38 +115,48 @@ export async function registerSessionKeyOnchain(params: {
   ownerPrivateKey: string;
   session: StoredSessionKey;
 }): Promise<{ txHash: string }> {
-  const spending = BigInt(params.session.spendingLimit);
-  const { low, high } = u256FromBigInt(spending);
-
   const account = createOwnerAccount({
     rpcUrl: params.wallet.rpcUrl,
     accountAddress: params.wallet.accountAddress,
     ownerPrivateKey: params.ownerPrivateKey,
   });
 
-  // Pad allowed contracts to exactly 4 slots (filling unused with zero address).
-  const targets = padTargets(params.session.allowedContracts);
+  // Build allowed entrypoints for the session key
+  // Note: session-account API only supports entrypoint selectors, not contract-level restrictions.
+  // Contract targeting (allowedContracts) is stored locally but not enforced on-chain yet.
+  
+  // Validate: block registration if contract-level restrictions are requested
+  // (not supported by session-account API)
+  if (params.session.allowedContracts && params.session.allowedContracts.length > 0) {
+    throw new Error(
+      "Contract-level restrictions are not supported by session-account API. " +
+      "Only entrypoint selectors are enforced on-chain. Remove allowedContracts or use a future API version."
+    );
+  }
 
-  // Call register_session_key(key, SessionPolicy).
-  // SessionPolicy struct fields are serialized in declaration order:
-  //   valid_after, valid_until, spending_limit (u256 = low + high),
-  //   spending_token, allowed_contract_0…3
+  // Security hardening: fail fast when callers pass spending policy fields that
+  // are not enforced by add_or_update_session_key.
+  if (params.session.spendingLimit !== "0" || params.session.tokenAddress !== "") {
+    throw new Error(
+      "Spending policy fields (spendingLimit/tokenAddress) are not enforced by add_or_update_session_key. " +
+      "Configure on-chain limits with set_spending_policy before using this session in production."
+    );
+  }
+  
+  const allowedEntrypoints = buildAllowedEntrypoints();
+
+  // Call add_or_update_session_key(key, valid_until, max_calls, allowed_entrypoints)
+  // New session-account API: add_or_update_session_key replaces old register_session_key
   const tx = await account.execute([
     {
       contractAddress: params.wallet.accountAddress,
-      entrypoint: "register_session_key",
+      entrypoint: "add_or_update_session_key",
       calldata: [
         params.session.key,
-        // SessionPolicy fields:
-        params.session.validAfter.toString(),
         params.session.validUntil.toString(),
-        low,   // spending_limit.low
-        high,  // spending_limit.high
-        params.session.tokenAddress,  // spending_token
-        targets[0],  // allowed_contract_0
-        targets[1],  // allowed_contract_1
-        targets[2],  // allowed_contract_2
-        targets[3],  // allowed_contract_3
+        DEFAULT_MAX_CALLS.toString(), // max_calls - default limit
+        allowedEntrypoints.length.toString(),
+        ...allowedEntrypoints,
       ],
     },
   ]);
@@ -158,6 +176,18 @@ export async function registerSessionKeyOnchain(params: {
   }
 
   return { txHash: tx.transaction_hash };
+}
+
+/**
+ * Build allowed entrypoint selectors for session keys.
+ * Returns a fixed list of common entrypoint selector hashes.
+ */
+function buildAllowedEntrypoints(): string[] {
+  const selectors: string[] = [];
+  for (const entrypoint of COMMON_ENTRYPOINTS) {
+    selectors.push(hash.getSelectorFromName(entrypoint));
+  }
+  return selectors;
 }
 
 export async function revokeSessionKeyOnchain(params: {

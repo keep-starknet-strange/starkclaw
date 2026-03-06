@@ -29,6 +29,21 @@ export async function createAndRegisterSessionKey(params: {
   const pk = await loadOwnerPrivateKey();
   if (!pk) throw new Error("Owner private key not found.");
 
+  // Keep behavior aligned with on-chain registration constraints to avoid
+  // creating local session keys that cannot be registered.
+  if (params.allowedContracts.length > 0) {
+    throw new Error(
+      "Contract-level restrictions are not supported by session-account API. " +
+      "Only entrypoint selectors are enforced on-chain."
+    );
+  }
+  if (params.spendingLimit !== 0n || params.tokenAddress !== "") {
+    throw new Error(
+      "Spending policy must be configured with set_spending_policy after session registration. " +
+      "Use zero spendingLimit and empty tokenAddress for add_or_update_session_key."
+    );
+  }
+
   const session = await createLocalSessionKey({
     tokenSymbol: params.tokenSymbol,
     tokenAddress: params.tokenAddress,
@@ -45,8 +60,8 @@ export async function createAndRegisterSessionKey(params: {
 
   await appendActivity({
     networkId: params.wallet.networkId,
-    kind: "register_session_key",
-    summary: `Register session key for ${params.tokenSymbol} (cap: ${params.spendingLimit.toString()}, ${params.allowedContracts.length || "any"} targets)`,
+    kind: "add_or_update_session_key",
+    summary: `Register session key for ${params.tokenSymbol} (entrypoint-only policy)`,
     txHash,
     status: "pending",
   });

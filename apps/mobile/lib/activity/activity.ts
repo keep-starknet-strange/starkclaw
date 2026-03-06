@@ -10,7 +10,7 @@ export type ActivityItem = {
   networkId: string;
   kind:
     | "deploy_account"
-    | "register_session_key"
+    | "add_or_update_session_key"
     | "revoke_session_key"
     | "emergency_revoke_all"
     | "transfer"

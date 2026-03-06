@@ -95,7 +95,7 @@ export type PaymasterExecuteResult = {
 const ELIGIBLE_KINDS = new Set([
   "transfer",
   "swap",
-  "register_session_key",
+  "add_or_update_session_key",
   "revoke_session_key",
 ]);
 

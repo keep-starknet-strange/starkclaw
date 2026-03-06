@@ -42,7 +42,10 @@ vi.mock("@/lib/storage/secure-store", () => ({
 import {
   isSessionKeyValidOnchain,
   registerSessionKeyOnchain,
+  DEFAULT_MAX_CALLS,
+  COMMON_ENTRYPOINTS,
 } from "@/lib/policy/session-keys";
+import { hash } from "starknet";
 import type { StoredSessionKey } from "@/lib/policy/session-keys";
 
 const SESSION_KEYS_INDEX_ID = "starkclaw.session_keys.v1";
@@ -58,11 +61,11 @@ const wallet = {
 const session: StoredSessionKey = {
   key: "0x222",
   tokenSymbol: "STRK",
-  tokenAddress: "0x333",
-  spendingLimit: "1000",
+  tokenAddress: "",
+  spendingLimit: "0",
   validAfter: 100,
   validUntil: 2000,
-  allowedContracts: ["0x444"],
+  allowedContracts: [], // Empty: entrypoint-only restrictions (supported by session-account API)
   createdAt: 100,
 };
 
@@ -74,7 +77,38 @@ describe("session-keys migration", () => {
     vi.setSystemTime(new Date("2026-02-14T00:00:00.000Z"));
   });
 
-  it("registers session key with register_session_key entrypoint and SessionPolicy", async () => {
+  it("throws when allowedContracts is non-empty (not supported by session-account API)", async () => {
+    const sessionWithContracts: StoredSessionKey = {
+      ...session,
+      allowedContracts: ["0x444"],
+    };
+    
+    await expect(
+      registerSessionKeyOnchain({
+        wallet,
+        ownerPrivateKey: "0xowner",
+        session: sessionWithContracts,
+      })
+    ).rejects.toThrow("Contract-level restrictions are not supported");
+  });
+
+  it("throws when spending policy fields are set (not enforced by add_or_update_session_key)", async () => {
+    const sessionWithSpendingPolicy: StoredSessionKey = {
+      ...session,
+      tokenAddress: "0x333",
+      spendingLimit: "1000",
+    };
+
+    await expect(
+      registerSessionKeyOnchain({
+        wallet,
+        ownerPrivateKey: "0xowner",
+        session: sessionWithSpendingPolicy,
+      })
+    ).rejects.toThrow("Spending policy fields");
+  });
+
+  it("registers session key with add_or_update_session_key entrypoint and SessionData", async () => {
     hoisted.execute.mockResolvedValue({ transaction_hash: "0xdeadbeef" });
     hoisted.waitForTransaction.mockResolvedValue(undefined);
     hoisted.store.set(SESSION_KEYS_INDEX_ID, JSON.stringify([session]));
@@ -97,22 +131,21 @@ describe("session-keys migration", () => {
       calldata: string[];
     }>;
 
-    // Single register_session_key call with SessionPolicy struct
+    // Single add_or_update_session_key call with new API
     expect(calls).toHaveLength(1);
-    expect(calls[0].entrypoint).toBe("register_session_key");
+    expect(calls[0].entrypoint).toBe("add_or_update_session_key");
     
-    // Calldata: [key, valid_after, valid_until, spending_limit.low, spending_limit.high, spending_token, allowed_contract_0...3]
+    // Calldata: [key, valid_until, max_calls, entrypoints_len, ...entrypoints]
     expect(calls[0].calldata[0]).toBe(session.key);
-    expect(calls[0].calldata[1]).toBe(session.validAfter.toString()); // valid_after
-    expect(calls[0].calldata[2]).toBe(session.validUntil.toString()); // valid_until
-    expect(calls[0].calldata[3]).toBe("0x3e8"); // spending_limit.low (1000)
-    expect(calls[0].calldata[4]).toBe("0x0");  // spending_limit.high
-    expect(calls[0].calldata[5]).toBe(session.tokenAddress); // spending_token
-    expect(calls[0].calldata[6]).toBe("0x444"); // allowed_contract_0
-    // Unused slots are padded with the full zero address
-    expect(calls[0].calldata[7]).toBe("0x0000000000000000000000000000000000000000000000000000000000000000");  // allowed_contract_1
-    expect(calls[0].calldata[8]).toBe("0x0000000000000000000000000000000000000000000000000000000000000000");  // allowed_contract_2
-    expect(calls[0].calldata[9]).toBe("0x0000000000000000000000000000000000000000000000000000000000000000");  // allowed_contract_3
+    expect(calls[0].calldata[1]).toBe(session.validUntil.toString()); // valid_until
+    expect(calls[0].calldata[2]).toBe(DEFAULT_MAX_CALLS.toString()); // max_calls
+    expect(calls[0].calldata[3]).toBe(COMMON_ENTRYPOINTS.length.toString()); // entrypoints_len
+    
+    // Validate entrypoint selectors
+    const expectedSelectors = COMMON_ENTRYPOINTS.map((name) => hash.getSelectorFromName(name));
+    for (let i = 0; i < COMMON_ENTRYPOINTS.length; i++) {
+      expect(calls[0].calldata[4 + i]).toBe(expectedSelectors[i]);
+    }
 
     const persisted = JSON.parse(
       hoisted.store.get(SESSION_KEYS_INDEX_ID) ?? "[]"
@@ -122,6 +155,7 @@ describe("session-keys migration", () => {
   });
 
   it("validates session key by get_session_data fields", async () => {
+    // Future valid_until, calls_used < max_calls -> valid
     hoisted.callContract.mockResolvedValueOnce(["0x7fffffff", "0x64", "0x1", "0x1"]);
     const valid = await isSessionKeyValidOnchain({
       rpcUrl: wallet.rpcUrl,
@@ -135,7 +169,8 @@ describe("session-keys migration", () => {
       calldata: [session.key],
     });
 
-    hoisted.callContract.mockResolvedValueOnce(["0x1", "0x64", "0x64", "0x1"]);
+    // Future valid_until but calls_used >= max_calls -> exhausted
+    hoisted.callContract.mockResolvedValueOnce(["0x7fffffff", "0x64", "0x64", "0x1"]);
     const exhausted = await isSessionKeyValidOnchain({
       rpcUrl: wallet.rpcUrl,
       accountAddress: wallet.accountAddress,
